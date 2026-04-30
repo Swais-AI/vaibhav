@@ -1,0 +1,135 @@
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, TIMESTAMP, Date, Text, Boolean, DateTime
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from database import Base
+
+class ClassMaster(Base):
+    __tablename__ = "class_master"
+    
+    class_id = Column(Integer, primary_key=True, index=True)
+    class_name = Column(String, index=True)
+    section_name = Column(String)
+    academic_year = Column(String)
+
+class StudentMaster(Base):
+    __tablename__ = "student_master"
+    
+    student_id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, index=True)
+    class_id = Column(Integer, ForeignKey("class_master.class_id"), index=True)
+    section = Column(String)
+    roll_no = Column(String)
+    
+    class_info = relationship("ClassMaster")
+
+class TeacherMaster(Base):
+    __tablename__ = "teacher_master"
+    
+    teacher_id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String, index=True)
+    email = Column(String)
+    phone = Column(String)
+
+class SubjectMaster(Base):
+    __tablename__ = "subject_master"
+    
+    subject_id = Column(Integer, primary_key=True, index=True)
+    class_id = Column(Integer, ForeignKey("class_master.class_id"))
+    subject_name = Column(String)
+    teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"))
+
+class ChapterMaster(Base):
+    __tablename__ = "chapter_master"
+    
+    chapter_id = Column(Integer, primary_key=True, index=True)
+    subject_id = Column(Integer, ForeignKey("subject_master.subject_id"), index=True)
+    chapter_name = Column(String)
+    chapter_order = Column(Integer)
+    
+    subject_info = relationship("SubjectMaster")
+
+class AssignmentMaster(Base):
+    __tablename__ = "assignment_master"
+    
+    assignment_id = Column(Integer, primary_key=True, index=True)
+    chapter_id = Column(Integer, ForeignKey("chapter_master.chapter_id"), index=True)
+    title = Column(String)
+    description = Column(Text)
+    due_date = Column(Date)
+    assigned_by = Column(Integer, ForeignKey("teacher_master.teacher_id"))
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    
+    chapter_info = relationship("ChapterMaster")
+
+class StudentSubmission(Base):
+    __tablename__ = "student_submission"
+    
+    submission_id = Column(Integer, primary_key=True, index=True)
+    assignment_id = Column(Integer, ForeignKey("assignment_master.assignment_id"))
+    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
+    submission_text = Column(Text)
+    file_path = Column(Text)
+    marks_obtained = Column(Float)
+    teacher_remarks = Column(Text)
+    submitted_at = Column(TIMESTAMP, default=datetime.utcnow)
+    
+    assignment_info = relationship("AssignmentMaster")
+
+class QuizMaster(Base):
+    __tablename__ = "quiz_master"
+    
+    quiz_id = Column(Integer, primary_key=True, index=True)
+    chapter_id = Column(Integer, ForeignKey("chapter_master.chapter_id"), index=True)
+    title = Column(String)
+    total_marks = Column(Float)
+    duration_minutes = Column(Integer)
+    
+    chapter_info = relationship("ChapterMaster")
+
+class QuizResponse(Base):
+    __tablename__ = "quiz_response"
+    
+    response_id = Column(Integer, primary_key=True, index=True)
+    quiz_id = Column(Integer, ForeignKey("quiz_master.quiz_id"))
+    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
+    score = Column(Float)
+    completed_flag = Column(Boolean, default=False)
+    
+    quiz_info = relationship("QuizMaster")
+
+class NoticeBoard(Base):
+    __tablename__ = "notice_board"
+    
+    notice_id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    content = Column(Text)
+    class_id = Column(Integer, ForeignKey("class_master.class_id"), index=True)
+    posted_by = Column(Integer, ForeignKey("teacher_master.teacher_id"))
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+
+class TeacherParentInteractionV2(Base):
+    __tablename__ = "teacher_parent_interaction_v2"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"))
+    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
+    class_id = Column(Integer, ForeignKey("class_master.class_id"))
+    section = Column(String)
+    comments = Column(Text)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    
+    teacher_info = relationship("TeacherMaster")
+    student_info = relationship("StudentMaster")
+
+class CallRequest(Base):
+    __tablename__ = "call_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
+    teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"), nullable=True)
+    message = Column(Text)
+    status = Column(String, default="pending")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    student_info = relationship("StudentMaster")
+    teacher_info = relationship("TeacherMaster")
