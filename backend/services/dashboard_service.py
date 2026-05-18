@@ -28,12 +28,12 @@ def get_dashboard_data(db: Session, student_id: int):
     student_query = db.query(StudentMaster, ClassMaster)\
         .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
         .filter(StudentMaster.student_id == student_id).first()
-
+        
     if not student_query:
         raise HTTPException(status_code=404, detail="Student not found")
-
+        
     student, class_info = student_query
-
+    
     student_data = StudentSchema(
         student_id=student.student_id,
         full_name=student.full_name,
@@ -51,7 +51,7 @@ def get_dashboard_data(db: Session, student_id: int):
     .outerjoin(StudentSubmission, (StudentSubmission.assignment_id == AssignmentMaster.assignment_id) & (StudentSubmission.student_id == student_id))\
     .filter(SubjectMaster.class_id == student.class_id)\
     .order_by(AssignmentMaster.due_date.desc()).all()
-
+        
     assignment_list = []
     pending_count = 0
     overdue_assignments = []
@@ -65,20 +65,20 @@ def get_dashboard_data(db: Session, student_id: int):
         if submission:
             status = "Completed"
             if submission.marks_obtained is not None:
-                graded_assignments.append((assign.title, submission.submitted_at))
+                graded_assignments.append((assign.assignment_title, submission.submitted_at))
         elif assign.due_date and assign.due_date < today:
             status = "Overdue"
-            overdue_assignments.append({"title": assign.title, "subject": subject_name, "days_left": days_left})
+            overdue_assignments.append({"assignment_title": assign.assignment_title, "subject": subject_name, "days_left": days_left})
         else:
             status = "Pending"
             pending_count += 1
             if assign.due_date and days_left >= 0:
                 upcoming_deadlines.append(DeadlineSchema(
-                    title=assign.title, type=f"Assignment • {subject_name}", due_date=due_date_str, days_left=days_left
+                    title=assign.assignment_title, type=f"Assignment • {subject_name}", due_date=due_date_str, days_left=days_left
                 ))
-
+            
         assignment_list.append(AssignmentSchema(
-            title=assign.title, subject=subject_name, due_date=due_date_str,
+            assignment_title=assign.assignment_title, subject=subject_name, due_date=due_date_str,
             status=status, marks_obtained=submission.marks_obtained if submission else None
         ))
 
@@ -92,7 +92,7 @@ def get_dashboard_data(db: Session, student_id: int):
     .join(SubjectMaster, ChapterMaster.subject_id == SubjectMaster.subject_id)\
     .outerjoin(QuizResponse, (QuizResponse.quiz_id == QuizMaster.quiz_id) & (QuizResponse.student_id == student_id))\
     .filter(SubjectMaster.class_id == student.class_id).all()
-
+        
     quiz_list = []
     subject_scores = {}
     total_score = 0
@@ -107,7 +107,7 @@ def get_dashboard_data(db: Session, student_id: int):
             subject_scores[subject_name].append(pct)
             total_score += pct
             total_quizzes += 1
-
+            
             quiz_list.append(QuizSchema(subject=subject_name, score=str(score), total=str(quiz.total_marks)))
         else:
             quiz_list.append(QuizSchema(subject=subject_name, score="--", total=str(quiz.total_marks or "--")))
@@ -115,18 +115,18 @@ def get_dashboard_data(db: Session, student_id: int):
     strongest_subject = "N/A"
     weakest_subject = "N/A"
     avg_score = total_score / total_quizzes if total_quizzes > 0 else 0
-
+    
     subject_performance_list = []
     if subject_scores:
         avg_per_subj = {subj: sum(scores)/len(scores) for subj, scores in subject_scores.items()}
         strongest_subject = max(avg_per_subj, key=avg_per_subj.get)
         weakest_subject = min(avg_per_subj, key=avg_per_subj.get)
-
+        
         for subj, avg in avg_per_subj.items():
             subject_performance_list.append(SubjectPerformanceData(
                 subject=subj, score=round(avg, 1), class_average=round(avg, 1) # simple fallback
             ))
-
+            
     subject_performance_list.sort(key=lambda x: x.score, reverse=True)
 
     performance_summary = PerformanceSummarySchema(
@@ -142,12 +142,12 @@ def get_dashboard_data(db: Session, student_id: int):
         .filter(TeacherParentInteractionV2.student_id == student_id)\
         .filter(TeacherParentInteractionV2.comments.isnot(None))\
         .filter(TeacherParentInteractionV2.comments != '').all()
-
+        
     all_remarks = []
     for inter, teacher_name in interactions:
         remark_date = inter.created_at or now
         all_remarks.append({"teacher_name": teacher_name, "comment": inter.comments.strip(), "date_obj": remark_date, "date": remark_date.strftime("%Y-%m-%d")})
-
+        
     all_remarks.sort(key=lambda x: x["date_obj"], reverse=True)
     remark_list = [RemarkSchema(remark_id=i, teacher_name=r["teacher_name"], comment=r["comment"], date=r["date"]) for i, r in enumerate(all_remarks, start=1)]
 
@@ -157,7 +157,7 @@ def get_dashboard_data(db: Session, student_id: int):
         .filter(NoticeBoard.notice_text.isnot(None))\
         .filter(NoticeBoard.notice_text != '')\
         .order_by(NoticeBoard.created_at.desc()).all()
-
+        
     notice_list = []
     for notice, teacher_name in notices_query:
         notice_date_str = notice.notice_date.strftime("%d %b %Y") if notice.notice_date else (notice.created_at.strftime("%d %b %Y") if notice.created_at else "")
@@ -180,11 +180,11 @@ def get_dashboard_data(db: Session, student_id: int):
     # 7. Action Required (Alerts Priority logic)
     # Overdue, due in 3 days, low quiz (< 50), unread remarks. Limit 4.
     alerts = []
-
+    
     for ov in overdue_assignments:
-        alerts.append(AlertSchema(type="warning", priority="HIGH", message=f"{ov['title']} overdue", subject=ov['subject'], due="Due passed"))
+        alerts.append(AlertSchema(type="warning", priority="HIGH", message=f"{ov['assignment_title']} overdue", subject=ov['subject'], due="Due passed"))
         if len(alerts) == 4: break
-
+        
     if len(alerts) < 4:
         for due in upcoming_deadlines:
             if due.days_left <= 3:
@@ -193,7 +193,7 @@ def get_dashboard_data(db: Session, student_id: int):
             elif due.days_left <= 7:
                 alerts.append(AlertSchema(type="info", priority="MEDIUM", message=due.title, subject=due.type.split("•")[-1].strip(), due=f"Due in {due.days_left} days"))
                 if len(alerts) == 4: break
-
+                
     if len(alerts) < 4:
         for subj, scores in subject_scores.items():
             if any(s < 50 for s in scores):
@@ -201,7 +201,7 @@ def get_dashboard_data(db: Session, student_id: int):
                 if len(alerts) == 4: break
 
     # Fallback missing properties in AlertSchema (we will update schema to include subject and due)
-
+    
     # 8. Smart Recommendations (Rule based)
     smart_recommendations = []
     if avg_score > 0 and avg_score < 50:
@@ -225,7 +225,7 @@ def get_dashboard_data(db: Session, student_id: int):
     # 10. Academic Streak (Consecutive active weeks logic)
     total_assignments = pending_count + sum(1 for a in assignment_list if a.status == "Completed") + len(overdue_assignments)
     submission_rate = (total_assignments - pending_count - len(overdue_assignments)) / total_assignments if total_assignments > 0 else 1
-
+    
     if submission_rate > 0.8: streak_val = "3 Weeks"
     elif submission_rate > 0.5: streak_val = "1 Week"
     else: streak_val = "0 Weeks"
@@ -250,7 +250,7 @@ def get_dashboard_data(db: Session, student_id: int):
         notifications.append(NotificationSchema(id=f"n_{n.notice_id}", type="announcement", title="New Notice Published", message=n.notice_title, date=n.notice_date, is_read=False, link="/parent/notices"))
     # Overdue assignments
     for o in overdue_assignments[:2]:
-        notifications.append(NotificationSchema(id=f"o_{o['title']}", type="warning", title="Assignment Overdue", message=o['title'], date=today.strftime("%d %b %Y"), is_read=False, link="/parent/assignments"))
+        notifications.append(NotificationSchema(id=f"o_{o['assignment_title']}", type="warning", title="Assignment Overdue", message=o['assignment_title'], date=today.strftime("%d %b %Y"), is_read=False, link="/parent/assignments"))
     # Graded assignments
     for g, t in graded_assignments[:2]:
         dt_str = t.strftime("%d %b %Y") if t else today.strftime("%d %b %Y")
@@ -258,7 +258,7 @@ def get_dashboard_data(db: Session, student_id: int):
     # Remarks
     for r in remark_list[:2]:
         notifications.append(NotificationSchema(id=f"r_{r.remark_id}", type="info", title=f"New Remark from {r.teacher_name}", message=r.comment, date=r.date, is_read=False, link="/parent/remarks"))
-
+    
     # Sort by a date proxy (just return top 5)
     notifications = notifications[:5]
 
@@ -294,3 +294,4 @@ def get_dashboard_data(db: Session, student_id: int):
         class_rank=class_rank,
         notifications=notifications
     )
+

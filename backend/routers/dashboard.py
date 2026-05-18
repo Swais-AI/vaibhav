@@ -76,7 +76,7 @@ def get_parent_children(parent_id: int, db: Session = Depends(get_db)):
         .join(ParentStudentMap, ParentStudentMap.student_id == StudentMaster.student_id)\
         .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
         .filter(ParentStudentMap.parent_id == parent_id).all()
-
+        
     result = []
     for student, class_info in children_query:
         result.append(MappedChildSchema(
@@ -116,7 +116,8 @@ def get_assignments_history(student_id: int, db: Session = Depends(get_db)):
             status = "Upcoming"
         assignment_list.append(AssignmentSchema(
             assignment_id=assign.assignment_id,
-            title=assign.title,
+            assignment_title=assign.assignment_title,
+            assignment_text=assign.assignment_text,
             subject=subject_name,
             chapter_name=chapter_name,
             teacher_name=teacher_name or "",
@@ -188,7 +189,8 @@ def submit_assignment(request: AssignmentSubmitRequest, db: Session = Depends(ge
     assign, subject_name, chapter_name, teacher_name = assign_row
     status = "Graded" if sub.marks_obtained is not None else "Submitted"
     return AssignmentSchema(
-        assignment_id=assign.assignment_id, title=assign.title, subject=subject_name,
+        assignment_id=assign.assignment_id, assignment_title=assign.assignment_title,
+        assignment_text=assign.assignment_text, subject=subject_name,
         chapter_name=chapter_name, teacher_name=teacher_name or "",
         due_date=assign.due_date.isoformat() if assign.due_date else "",
         status=status, marks_obtained=sub.marks_obtained,
@@ -208,16 +210,16 @@ def get_quiz_history(student_id: int, db: Session = Depends(get_db)):
     .join(SubjectMaster, ChapterMaster.subject_id == SubjectMaster.subject_id)\
     .join(QuizResponse, (QuizResponse.quiz_id == QuizMaster.quiz_id) & (QuizResponse.student_id == student_id))\
     .filter(SubjectMaster.class_id == student.class_id).all()
-
+        
     quiz_list = []
     for quiz, subject_name, response in quizzes_query:
         if not response or response.score is None:
             continue
-
+            
         score = float(response.score)
         total = float(quiz.total_marks or 100)
         percentage = round((score / total) * 100, 1) if total > 0 else 0
-
+        
         if percentage >= 85:
             status = "Excellent"
             suggestion = "Excellent consistency."
@@ -230,13 +232,13 @@ def get_quiz_history(student_id: int, db: Session = Depends(get_db)):
         else:
             status = "Needs Improvement"
             suggestion = "Immediate academic attention recommended."
-
+            
         quiz_list.append(QuizDetailResponse(
             subject=subject_name,
             score=str(score),
             total=str(total),
             quiz_id=quiz.quiz_id,
-            quiz_title=quiz.title or f"{subject_name} Quiz",
+            quiz_title=quiz.quiz_title or f"{subject_name} Quiz",
             percentage=percentage,
             teacher_name="Course Instructor",
             remarks=suggestion,
@@ -256,13 +258,13 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
         .filter(StudentSubmission.student_id == student_id)\
         .filter(StudentSubmission.teacher_remarks.isnot(None))\
         .filter(StudentSubmission.teacher_remarks != '').all()
-
+        
     interactions = db.query(TeacherParentInteractionV2, TeacherMaster.full_name)\
         .join(TeacherMaster, TeacherParentInteractionV2.teacher_id == TeacherMaster.teacher_id)\
         .filter(TeacherParentInteractionV2.student_id == student_id)\
         .filter(TeacherParentInteractionV2.comments.isnot(None))\
         .filter(TeacherParentInteractionV2.comments != '').all()
-
+        
     all_remarks = []
     idx = 1
     for sub, teacher_name, subject_name in submissions_remarks:
@@ -276,7 +278,7 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
             "date": remark_date.strftime("%d %b %Y")
         })
         idx += 1
-
+        
     for inter, teacher_name in interactions:
         remark_date = inter.created_at or datetime.utcnow()
         all_remarks.append({
@@ -288,7 +290,7 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
             "date": remark_date.strftime("%d %b %Y")
         })
         idx += 1
-
+        
     all_remarks.sort(key=lambda x: x["date_obj"], reverse=True)
     return [RemarkSchema(**r) for r in all_remarks]
 
@@ -296,22 +298,22 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
 def get_notices_history(student_id: int, db: Session = Depends(get_db)):
     student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
     if not student: raise HTTPException(status_code=404, detail="Student not found")
-
-    # We optionally could match student's class name with applicable_class, but since we
-    # changed the DB, let's just pull all notices and filter by something reasonable or just return all for now
+    
+    # We optionally could match student's class name with applicable_class, but since we 
+    # changed the DB, let's just pull all notices and filter by something reasonable or just return all for now 
     # (assuming all notices are relevant to the parent in this view).
     notices_query = db.query(NoticeBoard, TeacherMaster.full_name)\
         .outerjoin(TeacherMaster, NoticeBoard.posted_by == TeacherMaster.teacher_id)\
         .filter(NoticeBoard.notice_text.isnot(None))\
         .filter(NoticeBoard.notice_text != '')\
         .order_by(NoticeBoard.created_at.desc()).all()
-
+        
     return [
         NoticeSchema(
             notice_id=n.notice_id,
-            notice_title=n.notice_title or "Notice",
-            notice_text=n.notice_text.strip(),
-            notice_date=n.notice_date.strftime("%d %b %Y") if n.notice_date else (n.created_at.strftime("%d %b %Y") if n.created_at else ""),
+            notice_title=n.notice_title or "Notice", 
+            notice_text=n.notice_text.strip(), 
+            notice_date=n.notice_date.strftime("%d %b %Y") if n.notice_date else (n.created_at.strftime("%d %b %Y") if n.created_at else ""), 
             applicable_class=n.applicable_class or "All",
             posted_by_name=t or "Admin"
         ) for n, t in notices_query
@@ -375,19 +377,19 @@ from models import SupportTicket, TicketMessage
 @router.get("/notifications/{student_id}", response_model=List[NotificationSchema])
 def get_notifications(student_id: int, db: Session = Depends(get_db)):
     notifications = []
-
+    
     # 1. Unread Ticket Replies
     unread_msgs = db.query(TicketMessage, SupportTicket)\
         .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
         .filter(SupportTicket.student_id == student_id, TicketMessage.sender_type != "PARENT", TicketMessage.is_read == False).all()
-
+        
     for msg, ticket in unread_msgs:
         notifications.append(NotificationSchema(
             id=f"msg_{msg.message_id}", type="ticket_reply", title=f"Reply on {ticket.ticket_number}",
             message=msg.message[:50] + "...", date=msg.created_at.isoformat() if msg.created_at else "",
             is_read=False, link="/parent/communication"
         ))
-
+        
     # 2. Recent Announcements (mocked unread for today)
     from datetime import date, timedelta
     today = date.today()
@@ -402,7 +404,7 @@ def get_notifications(student_id: int, db: Session = Depends(get_db)):
                     message=n.notice_title or "Notice", date=n.created_at.isoformat(),
                     is_read=False, link="/parent/notices"
                 ))
-
+                
     notifications.sort(key=lambda x: x.date, reverse=True)
     return notifications
 
@@ -446,3 +448,4 @@ def get_notifications(student_id: int, db: Session = Depends(get_db)):
 # def update_leave_status(leave_request_id: int, update: LeaveStatusUpdate, db: Session = Depends(get_db)):
 #     ... (full implementation preserved in git history)
 # ──────────────────────────────────────────────────────────────────────────
+

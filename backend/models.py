@@ -3,20 +3,9 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
 
-# Active tables created by Base.metadata.create_all():
-#   class_master, student_master, parent_master, parent_student_map,
-#   teacher_master, subject_master, chapter_master,
-#   assignment_master, student_submission, quiz_master, quiz_response,
-#   notice_board, teacher_parent_interaction_v2,
-#   support_tickets, ticket_messages
-#
-# Legacy tables EXCLUDED from create_all() (class bodies commented out):
-#   call_requests, attendance_master, school_events,
-#   chat_threads, chat_messages, leave_requests
-
 class ClassMaster(Base):
     __tablename__ = "class_master"
-
+    
     class_id = Column(Integer, primary_key=True, index=True)
     class_name = Column(String, index=True)
     section_name = Column(String)
@@ -24,18 +13,18 @@ class ClassMaster(Base):
 
 class StudentMaster(Base):
     __tablename__ = "student_master"
-
+    
     student_id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, index=True)
     class_id = Column(Integer, ForeignKey("class_master.class_id"), index=True)
     section = Column(String)
     roll_no = Column(String)
-
+    
     class_info = relationship("ClassMaster")
 
 class ParentMaster(Base):
     __tablename__ = "parent_master"
-
+    
     parent_id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String)
     email = Column(String, index=True)
@@ -46,18 +35,18 @@ class ParentMaster(Base):
 
 class ParentStudentMap(Base):
     __tablename__ = "parent_student_map"
-
+    
     id = Column(Integer, primary_key=True, index=True)
     parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
     relationship_type = Column(String)
-
+    
     parent_info = relationship("ParentMaster")
     student_info = relationship("StudentMaster")
 
 class TeacherMaster(Base):
     __tablename__ = "teacher_master"
-
+    
     teacher_id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, index=True)
     email = Column(String)
@@ -65,7 +54,7 @@ class TeacherMaster(Base):
 
 class SubjectMaster(Base):
     __tablename__ = "subject_master"
-
+    
     subject_id = Column(Integer, primary_key=True, index=True)
     class_id = Column(Integer, ForeignKey("class_master.class_id"))
     subject_name = Column(String)
@@ -73,30 +62,30 @@ class SubjectMaster(Base):
 
 class ChapterMaster(Base):
     __tablename__ = "chapter_master"
-
+    
     chapter_id = Column(Integer, primary_key=True, index=True)
     subject_id = Column(Integer, ForeignKey("subject_master.subject_id"), index=True)
     chapter_name = Column(String)
     chapter_order = Column(Integer)
-
+    
     subject_info = relationship("SubjectMaster")
 
 class AssignmentMaster(Base):
     __tablename__ = "assignment_master"
-
+    
     assignment_id = Column(Integer, primary_key=True, index=True)
     chapter_id = Column(Integer, ForeignKey("chapter_master.chapter_id"), index=True)
-    title = Column(String)
-    description = Column(Text)
+    assignment_title = Column(String)
+    assignment_text = Column(Text)
     due_date = Column(Date)
     assigned_by = Column(Integer, ForeignKey("teacher_master.teacher_id"))
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
-
+    
     chapter_info = relationship("ChapterMaster")
 
 class StudentSubmission(Base):
     __tablename__ = "student_submission"
-
+    
     submission_id = Column(Integer, primary_key=True, index=True)
     assignment_id = Column(Integer, ForeignKey("assignment_master.assignment_id"))
     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
@@ -105,35 +94,35 @@ class StudentSubmission(Base):
     marks_obtained = Column(Float)
     teacher_remarks = Column(Text)
     submitted_at = Column(TIMESTAMP, default=datetime.utcnow)
-
+    
     assignment_info = relationship("AssignmentMaster")
 
 class QuizMaster(Base):
     __tablename__ = "quiz_master"
-
+    
     quiz_id = Column(Integer, primary_key=True, index=True)
     chapter_id = Column(Integer, ForeignKey("chapter_master.chapter_id"), index=True)
-    title = Column(String)
+    quiz_title = Column(String)
     total_marks = Column(Float)
     duration_minutes = Column(Integer)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
-
+    
     chapter_info = relationship("ChapterMaster")
 
 class QuizResponse(Base):
     __tablename__ = "quiz_response"
-
+    
     response_id = Column(Integer, primary_key=True, index=True)
     quiz_id = Column(Integer, ForeignKey("quiz_master.quiz_id"))
     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
     score = Column(Float)
     completed_flag = Column(Boolean, default=False)
-
+    
     quiz_info = relationship("QuizMaster")
 
 class NoticeBoard(Base):
     __tablename__ = "notice_board"
-
+    
     notice_id = Column(Integer, primary_key=True, index=True)
     notice_title = Column(String(200))
     notice_text = Column(Text)
@@ -146,7 +135,7 @@ class NoticeBoard(Base):
 
 class TeacherParentInteractionV2(Base):
     __tablename__ = "teacher_parent_interaction_v2"
-
+    
     id = Column(Integer, primary_key=True, index=True)
     teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"))
     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
@@ -154,19 +143,18 @@ class TeacherParentInteractionV2(Base):
     section = Column(String)
     comments = Column(Text)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
-
+    
     teacher_info = relationship("TeacherMaster")
     student_info = relationship("StudentMaster")
 
 # ── LEGACY MODEL: CallRequest ─────────────────────────────────────────────
 # Commented out — excluded from Base.metadata.create_all().
 # call_requests table will NOT be created on next DB init.
-# Routes in routers/dashboard.py are also commented out.
-# Restore by un-commenting this block and re-enabling those routes.
+# Call-request flow replaced by Communication Center (SupportTicket category).
+# Restore by un-commenting this block and re-enabling the routes.
 #
 # class CallRequest(Base):
 #     __tablename__ = "call_requests"
-#
 #     id = Column(Integer, primary_key=True, index=True)
 #     parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
 #     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
@@ -174,7 +162,6 @@ class TeacherParentInteractionV2(Base):
 #     message = Column(Text)
 #     status = Column(String, default="pending")
 #     created_at = Column(DateTime, default=datetime.utcnow)
-#
 #     parent_info = relationship("ParentMaster")
 #     student_info = relationship("StudentMaster")
 #     teacher_info = relationship("TeacherMaster")
@@ -183,33 +170,29 @@ class TeacherParentInteractionV2(Base):
 # ── LEGACY MODEL: AttendanceMaster ────────────────────────────────────────
 # Commented out — excluded from Base.metadata.create_all().
 # attendance_master table will NOT be created on next DB init.
-# Attendance module fully removed from parent portal.
-# All attendance API endpoints are disabled in routers/dashboard.py.
-# dashboard_service.py returns attendance_trend=None, attendance_heat=None.
-# Restore by un-commenting this block and re-enabling attendance endpoints.
+# Attendance module fully removed from parent portal; all /attendance/ endpoints
+# are disabled in routers/dashboard.py. dashboard_service.py does not query it.
+# Restore by un-commenting this block and re-enabling those endpoints/schemas.
 #
 # class AttendanceMaster(Base):
 #     __tablename__ = "attendance_master"
-#
 #     attendance_id = Column(Integer, primary_key=True, index=True)
 #     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
 #     class_id = Column(Integer, ForeignKey("class_master.class_id"), index=True)
 #     attendance_date = Column(Date)
 #     status = Column(String)  # Present, Absent, Late
 #     academic_year = Column(String)
-#
 #     student_info = relationship("StudentMaster")
 # ──────────────────────────────────────────────────────────────────────────
 
 # ── LEGACY MODEL: SchoolEvent ─────────────────────────────────────────────
 # Commented out — excluded from Base.metadata.create_all().
 # school_events table will NOT be created on next DB init.
-# Dashboard returns upcoming_events=[] (hardcoded empty list).
-# Restore by un-commenting this block and wiring up events in dashboard_service.py.
+# Events/calendar feature not implemented in current parent portal scope.
+# Restore by un-commenting this block and adding /events/ routes.
 #
 # class SchoolEvent(Base):
 #     __tablename__ = "school_events"
-#
 #     event_id = Column(Integer, primary_key=True, index=True)
 #     title = Column(String)
 #     description = Column(Text)
@@ -222,19 +205,16 @@ class TeacherParentInteractionV2(Base):
 # ── LEGACY MODEL: ChatThread ──────────────────────────────────────────────
 # Commented out — excluded from Base.metadata.create_all().
 # chat_threads table will NOT be created on next DB init.
-# Old thread-based chat replaced by Communication Center (/comm/ routes).
-# Active chat uses SupportTicket + TicketMessage tables instead.
-# Restore by un-commenting this block together with ChatMessage below.
+# Thread-based chat replaced by Communication Center (SupportTicket + TicketMessage).
+# Restore by un-commenting ChatThread + ChatMessage together.
 #
 # class ChatThread(Base):
 #     __tablename__ = "chat_threads"
-#
 #     id = Column(Integer, primary_key=True, index=True)
 #     parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
 #     teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"), index=True)
 #     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
 #     created_at = Column(DateTime, default=datetime.utcnow)
-#
 #     parent_info = relationship("ParentMaster")
 #     teacher_info = relationship("TeacherMaster")
 #     student_info = relationship("StudentMaster")
@@ -243,12 +223,10 @@ class TeacherParentInteractionV2(Base):
 # ── LEGACY MODEL: ChatMessage ─────────────────────────────────────────────
 # Commented out — excluded from Base.metadata.create_all().
 # chat_messages table will NOT be created on next DB init.
-# Old per-thread messages replaced by TicketMessage in Communication Center.
-# Restore by un-commenting this block together with ChatThread above.
+# Companion to ChatThread above; both disabled together.
 #
 # class ChatMessage(Base):
 #     __tablename__ = "chat_messages"
-#
 #     id = Column(Integer, primary_key=True, index=True)
 #     thread_id = Column(Integer, ForeignKey("chat_threads.id"), index=True)
 #     sender_type = Column(String)  # 'parent' or 'teacher'
@@ -257,7 +235,6 @@ class TeacherParentInteractionV2(Base):
 #     translated_message = Column(Text, nullable=True)
 #     created_at = Column(DateTime, default=datetime.utcnow)
 #     is_read = Column(Boolean, default=False)
-#
 #     thread_info = relationship("ChatThread")
 # ──────────────────────────────────────────────────────────────────────────
 
@@ -272,7 +249,7 @@ class SupportTicket(Base):
     category = Column(String)
     priority = Column(String)
     status = Column(String, default="OPEN")
-    recipient_name = Column(String, nullable=True)
+    recipient_name = Column(String, nullable=True)  # Teacher name or department
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -292,17 +269,16 @@ class TicketMessage(Base):
 
     ticket_info = relationship("SupportTicket")
 
-# ── LEGACY MODEL: LeaveRequest ─────────────────────────────────────────────
+# ── LEGACY MODEL: LeaveRequest ────────────────────────────────────────────
 # Commented out — excluded from Base.metadata.create_all().
 # leave_requests table will NOT be created on next DB init.
-# Standalone leave-request endpoints are disabled in routers/dashboard.py.
-# Leave requests now flow through Communication Center as a category
-# (routers/communication.py — category="Leave Request" in SupportTicket).
-# Restore by un-commenting this block and re-enabling the attendance leave endpoints.
+# Standalone leave-request endpoints disabled in routers/dashboard.py.
+# Leave requests now exist only as a Communication Center category in
+# routers/communication.py (SupportTicket with category="Leave Request").
+# Restore by un-commenting this block and re-enabling those endpoints/schemas.
 #
 # class LeaveRequest(Base):
 #     __tablename__ = "leave_requests"
-#
 #     leave_request_id = Column(Integer, primary_key=True, index=True)
 #     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
 #     parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
@@ -313,7 +289,6 @@ class TicketMessage(Base):
 #     status = Column(String, default="Pending")  # Pending, Approved, Rejected
 #     reviewed_by = Column(Integer, ForeignKey("teacher_master.teacher_id"), nullable=True)
 #     created_at = Column(DateTime, default=datetime.utcnow)
-#
 #     student_info = relationship("StudentMaster")
 #     parent_info = relationship("ParentMaster")
 # ──────────────────────────────────────────────────────────────────────────

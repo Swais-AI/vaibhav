@@ -13,7 +13,8 @@ class StudentSchema(BaseModel):
 
 class AssignmentSchema(BaseModel):
     assignment_id: Optional[int] = None
-    title: str
+    assignment_title: str
+    assignment_text: Optional[str] = None
     subject: str
     chapter_name: Optional[str] = None
     teacher_name: Optional[str] = None
@@ -426,3 +427,4 @@ class SendConversationMessageSchema(BaseModel):
     sender_type: str   # PARENT or TEACHER
     sender_name: str
     message: str
+

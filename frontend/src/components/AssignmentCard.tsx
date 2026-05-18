@@ -40,7 +40,7 @@ export default function AssignmentCard({ assignments }: { assignments: any[] }) 
                     <span className="text-lg">📄</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800 text-sm">{assignment.title}</h3>
+                    <h3 className="font-semibold text-gray-800 text-sm">{assignment.assignment_title}</h3>
                     <p className="text-xs text-gray-500 mt-1">Due: {formattedDate}</p>
                   </div>
                 </div>

@@ -5,8 +5,9 @@ import { fetchAssignmentsHistory, fetchAssignmentAnalytics, submitAssignment } f
 import { useDashboard } from '@/lib/DashboardContext';
 
 type Assignment = {
-  assignment_id: number; title: string; subject: string; chapter_name?: string;
-  teacher_name?: string; due_date: string; status: string; description?: string;
+  assignment_id: number; assignment_title: string; assignment_text?: string | null;
+  subject: string; chapter_name?: string;
+  teacher_name?: string; due_date: string; status: string;
   marks_obtained?: number | null; total_marks?: number | null;
   submitted_at?: string | null; submission_text?: string | null;
   teacher_remarks?: string | null; file_path?: string | null;
@@ -72,7 +73,7 @@ export default function AssignmentsPage() {
     if(tab!=='All'&&a.status!==tab) return false;
     if(subj!=='All'&&a.subject!==subj) return false;
     if(statusF!=='All'&&a.status!==statusF) return false;
-    if(search){const q=search.toLowerCase();if(!a.title.toLowerCase().includes(q)&&!a.subject.toLowerCase().includes(q)&&!(a.chapter_name||'').toLowerCase().includes(q))return false;}
+    if(search){const q=search.toLowerCase();if(!a.assignment_title.toLowerCase().includes(q)&&!a.subject.toLowerCase().includes(q)&&!(a.chapter_name||'').toLowerCase().includes(q))return false;}
     return true;
   }),[assignments,tab,subj,statusF,search]);
 
@@ -199,7 +200,7 @@ export default function AssignmentsPage() {
                             onMouseEnter={e=>(e.currentTarget.style.background='#FFF7ED')}
                             onMouseLeave={e=>(e.currentTarget.style.background='')}>
                             <td className="px-4 py-3">
-                              <p className="font-bold" style={{color:'#111827'}}>{a.title}</p>
+                              <p className="font-bold" style={{color:'#111827'}}>{a.assignment_title}</p>
                               <p className="text-xs mt-0.5" style={{color:'#9CA3AF'}}>{a.chapter_name}</p>
                             </td>
                             <td className="px-4 py-3 font-medium whitespace-nowrap" style={{color:'#4B5563'}}>{a.subject}</td>
@@ -243,7 +244,7 @@ export default function AssignmentsPage() {
               <div className="flex items-start justify-between gap-4">
                 {/* Left: title block */}
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-3xl font-black break-words leading-tight" style={{color:'#111827'}}>{drawer.title}</h2>
+                  <h2 className="text-3xl font-black break-words leading-tight" style={{color:'#111827'}}>{drawer.assignment_title}</h2>
                   {drawer.chapter_name&&(
                     <p className="text-sm mt-1.5 flex items-center gap-1.5" style={{color:'#6B7280'}}>
                       <span>📖</span><span className="font-medium">{drawer.chapter_name}</span>
@@ -269,8 +270,8 @@ export default function AssignmentsPage() {
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{color:'#9CA3AF'}}>Description</p>
                   <div className="rounded-xl p-4" style={{background:'#F9FAFB',border:'1px solid #E5E7EB'}}>
-                    <p className="text-sm leading-relaxed" style={{color:drawer.description?'#374151':'#9CA3AF',fontStyle:drawer.description?'normal':'italic'}}>
-                      {drawer.description||'No description provided.'}
+                    <p className="text-sm leading-relaxed" style={{color:drawer.assignment_text?'#374151':'#9CA3AF',fontStyle:drawer.assignment_text?'normal':'italic'}}>
+                      {drawer.assignment_text||'No description provided.'}
                     </p>
                   </div>
                 </div>
@@ -407,7 +408,7 @@ export default function AssignmentsPage() {
                     <option value="" style={{color:'#9CA3AF'}}>— Choose an assignment —</option>
                     {assignments.filter(a=>['Upcoming','Ongoing','Overdue'].includes(a.status)).map(a=>(
                       <option key={a.assignment_id} value={a.assignment_id} style={{color:'#111827'}}>
-                        {a.title} · {a.subject} · Due {fmt(a.due_date)}
+                        {a.assignment_title} · {a.subject} · Due {fmt(a.due_date)}
                       </option>
                     ))}
                   </select>
@@ -417,7 +418,7 @@ export default function AssignmentsPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider" style={{color:'#EA580C'}}>Submitting for</p>
-                      <p className="font-bold mt-0.5" style={{color:'#111827'}}>{target.title}</p>
+                      <p className="font-bold mt-0.5" style={{color:'#111827'}}>{target.assignment_title}</p>
                       <p className="text-xs mt-0.5" style={{color:'#6B7280'}}>{target.subject} · Due {fmt(target.due_date)}</p>
                       {target.teacher_name&&<p className="text-xs mt-0.5" style={{color:'#6B7280'}}>Teacher: {target.teacher_name}</p>}
                     </div>
