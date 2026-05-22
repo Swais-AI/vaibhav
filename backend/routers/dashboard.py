@@ -19,10 +19,13 @@ from schemas import (
 from models import (
     ParentStudentMap, StudentMaster, ClassMaster, AssignmentMaster, SubjectMaster,
     ChapterMaster, StudentSubmission, QuizMaster, QuizResponse,
-    TeacherParentInteractionV2, TeacherMaster, NoticeBoard,
+    TeacherMaster, NoticeBoard,
+    SupportTicket, TicketMessage,
     # DISABLED: CallRequest   — call-request routes commented out below.
     # DISABLED: AttendanceMaster — attendance endpoints commented out below.
     # DISABLED: LeaveRequest     — leave-request endpoints commented out below.
+    # DISABLED: TeacherParentInteractionV2 — table absent on SGS RDS; remarks
+    #           now come from TicketMessage (sender_type='TEACHER') instead.
 )
 
 router = APIRouter()
@@ -250,6 +253,7 @@ def get_quiz_history(student_id: int, db: Session = Depends(get_db)):
 
 @router.get("/remarks/history/{student_id}", response_model=List[RemarkSchema])
 def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
+    # Source 1: teacher_remarks stored on submitted assignments (graded work)
     submissions_remarks = db.query(StudentSubmission, TeacherMaster.full_name, SubjectMaster.subject_name)\
         .join(AssignmentMaster, StudentSubmission.assignment_id == AssignmentMaster.assignment_id)\
         .join(TeacherMaster, AssignmentMaster.assigned_by == TeacherMaster.teacher_id)\
@@ -258,13 +262,17 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
         .filter(StudentSubmission.student_id == student_id)\
         .filter(StudentSubmission.teacher_remarks.isnot(None))\
         .filter(StudentSubmission.teacher_remarks != '').all()
-        
-    interactions = db.query(TeacherParentInteractionV2, TeacherMaster.full_name)\
-        .join(TeacherMaster, TeacherParentInteractionV2.teacher_id == TeacherMaster.teacher_id)\
-        .filter(TeacherParentInteractionV2.student_id == student_id)\
-        .filter(TeacherParentInteractionV2.comments.isnot(None))\
-        .filter(TeacherParentInteractionV2.comments != '').all()
-        
+
+    # Source 2: teacher replies in Communication Center tickets for this student.
+    # Replaces TeacherParentInteractionV2 (table absent on SGS RDS).
+    # sender_name is already stored on each TicketMessage; no extra join needed.
+    teacher_msgs = db.query(TicketMessage, SupportTicket)\
+        .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
+        .filter(SupportTicket.student_id == student_id)\
+        .filter(TicketMessage.sender_type == "TEACHER")\
+        .filter(TicketMessage.message.isnot(None))\
+        .filter(TicketMessage.message != '').all()
+
     all_remarks = []
     idx = 1
     for sub, teacher_name, subject_name in submissions_remarks:
@@ -278,19 +286,19 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
             "date": remark_date.strftime("%d %b %Y")
         })
         idx += 1
-        
-    for inter, teacher_name in interactions:
-        remark_date = inter.created_at or datetime.utcnow()
+
+    for msg, ticket in teacher_msgs:
+        remark_date = msg.created_at or datetime.utcnow()
         all_remarks.append({
             "remark_id": idx,
-            "teacher_name": teacher_name,
-            "subject": "General",
-            "comment": inter.comments.strip(),
+            "teacher_name": msg.sender_name or "Teacher",
+            "subject": ticket.subject or "General",
+            "comment": msg.message.strip(),
             "date_obj": remark_date,
             "date": remark_date.strftime("%d %b %Y")
         })
         idx += 1
-        
+
     all_remarks.sort(key=lambda x: x["date_obj"], reverse=True)
     return [RemarkSchema(**r) for r in all_remarks]
 
@@ -371,8 +379,6 @@ def get_notices_history(student_id: int, db: Session = Depends(get_db)):
 # @router.get("/tickets/{ticket_id}/messages", ...)
 # @router.post("/tickets/{ticket_id}/messages", ...)
 # ──────────────────────────────────────────────────────────────────────────
-
-from models import SupportTicket, TicketMessage
 
 @router.get("/notifications/{student_id}", response_model=List[NotificationSchema])
 def get_notifications(student_id: int, db: Session = Depends(get_db)):

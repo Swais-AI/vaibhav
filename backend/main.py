@@ -1,20 +1,30 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-from database import engine, Base
+from database import engine, Base, DB_PREFIX
 import models
 from routers import dashboard, translation, communication
+from startup_check import run_startup_checks
 import logging
 
 logging.basicConfig(level=logging.INFO)
 
-# Create tables
+# ── Startup table validation ──────────────────────────────────────────────────
+# Checks that every table the app actively queries exists in the connected DB.
+# On SGS RDS (DB_TABLE_PREFIX="sgs_") this will warn about absent legacy tables
+# (e.g. sgs_teacher_parent_interaction) without blocking startup, and will raise
+# immediately if a *required* table is missing instead of crashing mid-request.
+run_startup_checks(raise_on_error=True)
+
+# Create tables (IF NOT EXISTS — safe for both fresh and existing databases)
 Base.metadata.create_all(bind=engine)
 
-# Add any columns that create_all won't backfill on existing tables
+# Back-fill recipient_name on existing support_tickets tables.
+# Uses DB_PREFIX so this is correct for both local and sgs_* RDS targets.
 with engine.connect() as _conn:
     _conn.execute(text(
-        "ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS recipient_name VARCHAR"
+        f"ALTER TABLE {DB_PREFIX}support_tickets "
+        "ADD COLUMN IF NOT EXISTS recipient_name VARCHAR"
     ))
     _conn.commit()
 

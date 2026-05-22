@@ -1,294 +1,455 @@
-from sqlalchemy import Column, Integer, String, Float, Numeric, ForeignKey, TIMESTAMP, Date, Text, Boolean, DateTime
+"""
+SQLAlchemy ORM models — Parent Dashboard
+
+Alignment strategy
+──────────────────
+• __tablename__ uses the DB_PREFIX env-var so the same codebase
+  targets local plain tables (prefix="") or RDS sgs_* tables
+  (prefix="sgs_") without any code changes.
+
+• Column aliasing:  attr = Column('rds_col_name', Type, …)
+  Maps the physical RDS column name to the existing Python
+  attribute name so backend routes, Pydantic schemas, service
+  math and React JSON keys are all unchanged.
+
+• BigInteger IDs promoted only where the RDS schema uses bigint.
+  Integer stays where RDS explicitly keeps integer
+  (parent_master, support_tickets PKs, ticket_messages PK).
+
+• Audit columns (record_status, version_no, modified_datetime, …)
+  added as nullable=True — zero impact on existing rows.
+
+• Columns that existed in the physical DB but were absent from the
+  prior model (admission_no, subject_code, chapter_no, …) are now
+  declared so the ORM can read/write them correctly.
+"""
+
+from sqlalchemy import (
+    Column, Integer, BigInteger, String, Numeric,
+    ForeignKey, TIMESTAMP, Date, Text, Boolean, DateTime,
+)
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from database import Base
+from database import Base, DB_PREFIX
+
+
+# ── 1. ClassMaster ────────────────────────────────────────────────────────────
 
 class ClassMaster(Base):
-    __tablename__ = "class_master"
-    
-    class_id = Column(Integer, primary_key=True, index=True)
-    class_name = Column(String, index=True)
-    section_name = Column(String)
-    academic_year = Column(String)
+    __tablename__ = f"{DB_PREFIX}class_master"
+
+    class_id         = Column(BigInteger, primary_key=True, index=True)
+    # school_id / class_teacher_id already bigint in local DB; added to model
+    school_id        = Column(BigInteger, nullable=True)
+    class_name       = Column(String, index=True)
+    section_name     = Column(String)
+    academic_year    = Column(String)
+    class_teacher_id = Column(BigInteger, nullable=True)
+    # Audit
+    created_datetime  = Column(TIMESTAMP, nullable=True)
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
+
+# ── 2. StudentMaster ──────────────────────────────────────────────────────────
 
 class StudentMaster(Base):
-    __tablename__ = "student_master"
-    
-    student_id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String, index=True)
-    class_id = Column(Integer, ForeignKey("class_master.class_id"), index=True)
-    section = Column(String)
-    roll_no = Column(String)
-    
+    __tablename__ = f"{DB_PREFIX}student_master"
+
+    student_id     = Column(BigInteger, primary_key=True, index=True)
+    # admission_no was in the physical DB but missing from the prior model
+    admission_no   = Column(String, nullable=True)
+    full_name      = Column(String, index=True)
+    class_id       = Column(BigInteger, ForeignKey(f"{DB_PREFIX}class_master.class_id"), index=True)
+    section        = Column(String)
+    roll_no        = Column(String)
+    # RDS enrichment fields
+    student_phone  = Column(String, nullable=True)
+    student_email  = Column(String, nullable=True)
+    guardian_name  = Column(String, nullable=True)
+    guardian_phone = Column(String, nullable=True)
+    guardian_email = Column(String, nullable=True)
+    is_active      = Column(Boolean, nullable=True)
+    # Audit
+    created_datetime  = Column(TIMESTAMP, nullable=True)
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
     class_info = relationship("ClassMaster")
 
+
+# ── 3. ParentMaster ───────────────────────────────────────────────────────────
+# RDS schema (sgs_parent_master) matches local exactly — no renames required.
+
 class ParentMaster(Base):
-    __tablename__ = "parent_master"
-    
-    parent_id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String)
-    email = Column(String, index=True)
-    phone = Column(String)
+    __tablename__ = f"{DB_PREFIX}parent_master"
+
+    parent_id     = Column(Integer, primary_key=True, index=True)
+    full_name     = Column(String)
+    email         = Column(String, index=True)
+    phone         = Column(String)
     profile_image = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at    = Column(DateTime, default=datetime.utcnow)
+    updated_at    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ── 4. ParentStudentMap ───────────────────────────────────────────────────────
+# RDS schema matches local — student_id promoted to bigint locally for FK
+# consistency with student_master.student_id (bigint).
 
 class ParentStudentMap(Base):
-    __tablename__ = "parent_student_map"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
-    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
+    __tablename__ = f"{DB_PREFIX}parent_student_map"
+
+    id                = Column(Integer, primary_key=True, index=True)
+    parent_id         = Column(Integer, ForeignKey(f"{DB_PREFIX}parent_master.parent_id"), index=True)
+    student_id        = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
     relationship_type = Column(String)
-    
-    parent_info = relationship("ParentMaster")
+
+    parent_info  = relationship("ParentMaster")
     student_info = relationship("StudentMaster")
+
+
+# ── 5. TeacherMaster ──────────────────────────────────────────────────────────
 
 class TeacherMaster(Base):
-    __tablename__ = "teacher_master"
-    
-    teacher_id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String, index=True)
-    email = Column(String)
-    phone = Column(String)
+    __tablename__ = f"{DB_PREFIX}teacher_master"
+
+    teacher_id = Column(BigInteger, primary_key=True, index=True)
+    full_name  = Column(String, index=True)
+
+    # Physical RDS column is 'email_id'; Python attr stays 'email'
+    # so all backend code and API responses are unchanged.
+    email      = Column('email_id', String)
+
+    # phone is BIGINT on SGS RDS (sgs_teacher_master.phone bigint).
+    # Model changed from String → BigInteger to match RDS exactly.
+    # Seed script generates 10-digit integers (9_000_000_000 – 9_999_999_999).
+    # Local PostgreSQL column is VARCHAR — PostgreSQL silently casts an integer
+    # literal to varchar on INSERT, and SQLAlchemy coerces the returned varchar
+    # back to int on SELECT, so both local and RDS work correctly.
+    phone      = Column(BigInteger, nullable=True)
+
+    # These columns existed in the physical DB but were absent from model
+    subject_name = Column(String, nullable=True)
+    class_id     = Column(BigInteger, nullable=True)   # no FK — local usage only
+    section_1    = Column(String, nullable=True)
+    section_2    = Column(String, nullable=True)
+    role         = Column(String, nullable=True)
+    # RDS addition
+    is_active    = Column(Boolean, nullable=True)
+    created_at   = Column(TIMESTAMP, nullable=True)
+
+
+# ── 6. SubjectMaster ──────────────────────────────────────────────────────────
 
 class SubjectMaster(Base):
-    __tablename__ = "subject_master"
-    
-    subject_id = Column(Integer, primary_key=True, index=True)
-    class_id = Column(Integer, ForeignKey("class_master.class_id"))
+    __tablename__ = f"{DB_PREFIX}subject_master"
+
+    subject_id   = Column(BigInteger, primary_key=True, index=True)
+    class_id     = Column(BigInteger, ForeignKey(f"{DB_PREFIX}class_master.class_id"))
     subject_name = Column(String)
-    teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"))
+    # subject_code was in the physical DB but missing from prior model
+    subject_code = Column(String, nullable=True)
+    teacher_id   = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"))
+    # Audit
+    created_datetime  = Column(TIMESTAMP, nullable=True)
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
+
+# ── 7. ChapterMaster ──────────────────────────────────────────────────────────
 
 class ChapterMaster(Base):
-    __tablename__ = "chapter_master"
-    
-    chapter_id = Column(Integer, primary_key=True, index=True)
-    subject_id = Column(Integer, ForeignKey("subject_master.subject_id"), index=True)
-    chapter_name = Column(String)
-    chapter_order = Column(Integer)
-    
+    __tablename__ = f"{DB_PREFIX}chapter_master"
+
+    chapter_id = Column(BigInteger, primary_key=True, index=True)
+    subject_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}subject_master.subject_id"), index=True)
+    # chapter_no and chapter_description were in DB but missing from prior model
+    chapter_no          = Column(Integer, nullable=True)
+    chapter_name        = Column(String)
+    chapter_description = Column(Text, nullable=True)
+    chapter_order       = Column(Integer)
+    # Audit
+    created_datetime  = Column(TIMESTAMP, nullable=True)
+    created_user_id   = Column(String, nullable=True)
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
     subject_info = relationship("SubjectMaster")
 
+
+# ── 8. AssignmentMaster ───────────────────────────────────────────────────────
+
 class AssignmentMaster(Base):
-    __tablename__ = "assignment_master"
-    
-    assignment_id = Column(Integer, primary_key=True, index=True)
-    chapter_id = Column(Integer, ForeignKey("chapter_master.chapter_id"), index=True)
+    __tablename__ = f"{DB_PREFIX}assignment_master"
+
+    assignment_id    = Column(BigInteger, primary_key=True, index=True)
+    chapter_id       = Column(BigInteger, ForeignKey(f"{DB_PREFIX}chapter_master.chapter_id"), index=True)
     assignment_title = Column(String)
-    assignment_text = Column(Text)
-    due_date = Column(Date)
-    assigned_by = Column(Integer, ForeignKey("teacher_master.teacher_id"))
-    created_at = Column(TIMESTAMP, default=datetime.utcnow)
-    
+    assignment_text  = Column(Text)
+    due_date         = Column(Date)
+    assigned_by      = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"))
+
+    # Physical RDS column is 'created_datetime'; Python attr stays 'created_at'
+    # preserving all service, schema, and frontend references unchanged.
+    created_at = Column('created_datetime', TIMESTAMP, default=datetime.utcnow)
+
+    # Full audit set required by RDS
+    created_user_id     = Column(String, nullable=True)
+    created_ip_address  = Column(String, nullable=True)
+    modified_datetime   = Column(TIMESTAMP, nullable=True)
+    modified_user_id    = Column(String, nullable=True)
+    modified_ip_address = Column(String, nullable=True)
+    record_status       = Column(String, nullable=True)
+    version_no          = Column(Integer, nullable=True)
+
     chapter_info = relationship("ChapterMaster")
+
+
+# ── 9. StudentSubmission ──────────────────────────────────────────────────────
 
 class StudentSubmission(Base):
-    __tablename__ = "student_submission"
-    
-    submission_id = Column(Integer, primary_key=True, index=True)
-    assignment_id = Column(Integer, ForeignKey("assignment_master.assignment_id"))
-    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
+    __tablename__ = f"{DB_PREFIX}student_submission"
+
+    submission_id   = Column(BigInteger, primary_key=True, index=True)
+    assignment_id   = Column(BigInteger, ForeignKey(f"{DB_PREFIX}assignment_master.assignment_id"))
+    student_id      = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
     submission_text = Column(Text)
-    file_path = Column(Text)
-    marks_obtained = Column(Numeric(5, 2))
+    file_path       = Column(Text)
+    marks_obtained  = Column(Numeric(5, 2))
     teacher_remarks = Column(Text)
-    submitted_at = Column(TIMESTAMP, default=datetime.utcnow)
-    
+    # submitted_at kept as-is — RDS also carries this field alongside created_datetime
+    submitted_at      = Column(TIMESTAMP, default=datetime.utcnow)
+    # Audit
+    created_datetime  = Column(TIMESTAMP, nullable=True)
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
     assignment_info = relationship("AssignmentMaster")
 
+
+# ── 10. QuizMaster ────────────────────────────────────────────────────────────
+
 class QuizMaster(Base):
-    __tablename__ = "quiz_master"
-    
-    quiz_id = Column(Integer, primary_key=True, index=True)
-    chapter_id = Column(Integer, ForeignKey("chapter_master.chapter_id"), index=True)
-    quiz_title = Column(String)
-    total_marks = Column(Integer)
+    __tablename__ = f"{DB_PREFIX}quiz_master"
+
+    quiz_id          = Column(BigInteger, primary_key=True, index=True)
+    chapter_id       = Column(BigInteger, ForeignKey(f"{DB_PREFIX}chapter_master.chapter_id"), index=True)
+    quiz_title       = Column(String)
+    total_marks      = Column(Integer)
     duration_minutes = Column(Integer)
-    created_at = Column(TIMESTAMP, default=datetime.utcnow)
-    
+
+    # Physical RDS column is 'created_datetime'; Python attr stays 'created_at'
+    created_at = Column('created_datetime', TIMESTAMP, default=datetime.utcnow)
+
+    # Audit
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
     chapter_info = relationship("ChapterMaster")
 
+
+# ── 11. QuizResponse ──────────────────────────────────────────────────────────
+
 class QuizResponse(Base):
-    __tablename__ = "quiz_response"
-    
-    response_id = Column(Integer, primary_key=True, index=True)
-    quiz_id = Column(Integer, ForeignKey("quiz_master.quiz_id"))
-    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
-    score = Column(Numeric(5, 2))
+    __tablename__ = f"{DB_PREFIX}quiz_response"
+
+    response_id    = Column(BigInteger, primary_key=True, index=True)
+    quiz_id        = Column(BigInteger, ForeignKey(f"{DB_PREFIX}quiz_master.quiz_id"))
+    student_id     = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
+    score          = Column(Numeric(5, 2))
     completed_flag = Column(Boolean, default=False)
-    
+    # Audit
+    created_datetime  = Column(TIMESTAMP, nullable=True)
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
     quiz_info = relationship("QuizMaster")
 
+
+# ── 12. NoticeBoard ───────────────────────────────────────────────────────────
+
 class NoticeBoard(Base):
-    __tablename__ = "notice_board"
-    
-    notice_id = Column(Integer, primary_key=True, index=True)
-    notice_title = Column(String(200))
-    notice_text = Column(Text)
-    notice_date = Column(Date)
+    __tablename__ = f"{DB_PREFIX}notice_board"
+
+    notice_id        = Column(BigInteger, primary_key=True, index=True)
+    notice_title     = Column(String(200))
+    notice_text      = Column(Text)
+    notice_date      = Column(Date)
     applicable_class = Column(String(50))
-    posted_by = Column(Integer, ForeignKey("teacher_master.teacher_id"))
-    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    posted_by        = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"))
+
+    # Physical RDS column is 'created_datetime'; Python attr stays 'created_at'
+    # dashboard_service.py uses NoticeBoard.created_at and notice.created_at —
+    # both still resolve correctly via SQLAlchemy's key/name aliasing.
+    created_at = Column('created_datetime', TIMESTAMP, default=datetime.utcnow)
+
+    # Audit
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
 
     teacher_info = relationship("TeacherMaster")
 
-class TeacherParentInteractionV2(Base):
-    __tablename__ = "teacher_parent_interaction"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"))
-    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
-    class_id = Column(Integer, ForeignKey("class_master.class_id"))
-    section = Column(String)
-    comments = Column(Text)
-    created_at = Column(TIMESTAMP, default=datetime.utcnow)
-    
-    teacher_info = relationship("TeacherMaster")
+
+# ── 13. SupportTicket ─────────────────────────────────────────────────────────
+# RDS schema (sgs_support_tickets) matches local — no renames required.
+# student_id promoted to BigInteger locally for FK constraint consistency.
+
+class SupportTicket(Base):
+    __tablename__ = f"{DB_PREFIX}support_tickets"
+
+    ticket_id      = Column(Integer, primary_key=True, index=True)
+    ticket_number  = Column(String, unique=True, index=True)
+    parent_id      = Column(Integer, ForeignKey(f"{DB_PREFIX}parent_master.parent_id"), index=True)
+    student_id     = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
+    subject        = Column(String)
+    category       = Column(String)
+    priority       = Column(String)
+    status         = Column(String, default="OPEN")
+    recipient_name = Column(String, nullable=True)
+    created_at     = Column(DateTime, default=datetime.utcnow)
+    updated_at     = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    parent_info  = relationship("ParentMaster")
     student_info = relationship("StudentMaster")
 
-# ── LEGACY MODEL: CallRequest ─────────────────────────────────────────────
-# Commented out — excluded from Base.metadata.create_all().
-# call_requests table will NOT be created on next DB init.
-# Call-request flow replaced by Communication Center (SupportTicket category).
-# Restore by un-commenting this block and re-enabling the routes.
+
+# ── 14. TicketMessage ─────────────────────────────────────────────────────────
+# RDS schema (sgs_ticket_messages) matches local — no changes required.
+
+class TicketMessage(Base):
+    __tablename__ = f"{DB_PREFIX}ticket_messages"
+
+    message_id  = Column(Integer, primary_key=True, index=True)
+    ticket_id   = Column(Integer, ForeignKey(f"{DB_PREFIX}support_tickets.ticket_id"), index=True)
+    sender_type = Column(String)
+    sender_name = Column(String)
+    message     = Column(Text)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+    is_read     = Column(Boolean, default=False)
+
+    ticket_info = relationship("SupportTicket")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LEGACY MODELS  —  preserved as comments; excluded from Base.metadata.create_all
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── CallRequest ───────────────────────────────────────────────────────────────
+# Replaced by Communication Center (SupportTicket category).
+# Restore by un-commenting and re-enabling routes.
 #
 # class CallRequest(Base):
-#     __tablename__ = "call_requests"
+#     __tablename__ = f"{DB_PREFIX}call_requests"
 #     id = Column(Integer, primary_key=True, index=True)
-#     parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
-#     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
-#     teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"), nullable=True)
+#     parent_id = Column(Integer, ForeignKey(f"{DB_PREFIX}parent_master.parent_id"), index=True)
+#     student_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
+#     teacher_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"), nullable=True)
 #     message = Column(Text)
 #     status = Column(String, default="pending")
 #     created_at = Column(DateTime, default=datetime.utcnow)
 #     parent_info = relationship("ParentMaster")
 #     student_info = relationship("StudentMaster")
 #     teacher_info = relationship("TeacherMaster")
-# ──────────────────────────────────────────────────────────────────────────
 
-# ── LEGACY MODEL: AttendanceMaster ────────────────────────────────────────
-# Commented out — excluded from Base.metadata.create_all().
-# attendance_master table will NOT be created on next DB init.
-# Attendance module fully removed from parent portal; all /attendance/ endpoints
-# are disabled in routers/dashboard.py. dashboard_service.py does not query it.
-# Restore by un-commenting this block and re-enabling those endpoints/schemas.
+# ── AttendanceMaster ──────────────────────────────────────────────────────────
+# Attendance module fully removed from parent portal.
+# Restore by un-commenting and re-enabling endpoints/schemas.
 #
 # class AttendanceMaster(Base):
-#     __tablename__ = "attendance_master"
+#     __tablename__ = f"{DB_PREFIX}attendance_master"
 #     attendance_id = Column(Integer, primary_key=True, index=True)
-#     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
-#     class_id = Column(Integer, ForeignKey("class_master.class_id"), index=True)
+#     student_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
+#     class_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}class_master.class_id"), index=True)
 #     attendance_date = Column(Date)
-#     status = Column(String)  # Present, Absent, Late
+#     status = Column(String)
 #     academic_year = Column(String)
 #     student_info = relationship("StudentMaster")
-# ──────────────────────────────────────────────────────────────────────────
 
-# ── LEGACY MODEL: SchoolEvent ─────────────────────────────────────────────
-# Commented out — excluded from Base.metadata.create_all().
-# school_events table will NOT be created on next DB init.
-# Events/calendar feature not implemented in current parent portal scope.
-# Restore by un-commenting this block and adding /events/ routes.
+# ── SchoolEvent ───────────────────────────────────────────────────────────────
+# Events/calendar feature not in current scope.
 #
 # class SchoolEvent(Base):
-#     __tablename__ = "school_events"
+#     __tablename__ = f"{DB_PREFIX}school_events"
 #     event_id = Column(Integer, primary_key=True, index=True)
 #     title = Column(String)
 #     description = Column(Text)
 #     event_date = Column(Date)
-#     class_id = Column(Integer, ForeignKey("class_master.class_id"), nullable=True)
+#     class_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}class_master.class_id"), nullable=True)
 #     academic_year = Column(String)
-#     event_type = Column(String)  # Exam, Holiday, PTM, Activity
-# ──────────────────────────────────────────────────────────────────────────
+#     event_type = Column(String)
 
-# ── LEGACY MODEL: ChatThread ──────────────────────────────────────────────
-# Commented out — excluded from Base.metadata.create_all().
-# chat_threads table will NOT be created on next DB init.
-# Thread-based chat replaced by Communication Center (SupportTicket + TicketMessage).
-# Restore by un-commenting ChatThread + ChatMessage together.
+# ── ChatThread / ChatMessage ──────────────────────────────────────────────────
+# Thread-based chat replaced by Communication Center.
+# Restore ChatThread + ChatMessage together.
 #
 # class ChatThread(Base):
-#     __tablename__ = "chat_threads"
+#     __tablename__ = f"{DB_PREFIX}chat_threads"
 #     id = Column(Integer, primary_key=True, index=True)
-#     parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
-#     teacher_id = Column(Integer, ForeignKey("teacher_master.teacher_id"), index=True)
-#     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
+#     parent_id = Column(Integer, ForeignKey(f"{DB_PREFIX}parent_master.parent_id"), index=True)
+#     teacher_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"), index=True)
+#     student_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
 #     created_at = Column(DateTime, default=datetime.utcnow)
 #     parent_info = relationship("ParentMaster")
 #     teacher_info = relationship("TeacherMaster")
 #     student_info = relationship("StudentMaster")
-# ──────────────────────────────────────────────────────────────────────────
-
-# ── LEGACY MODEL: ChatMessage ─────────────────────────────────────────────
-# Commented out — excluded from Base.metadata.create_all().
-# chat_messages table will NOT be created on next DB init.
-# Companion to ChatThread above; both disabled together.
 #
 # class ChatMessage(Base):
-#     __tablename__ = "chat_messages"
+#     __tablename__ = f"{DB_PREFIX}chat_messages"
 #     id = Column(Integer, primary_key=True, index=True)
-#     thread_id = Column(Integer, ForeignKey("chat_threads.id"), index=True)
-#     sender_type = Column(String)  # 'parent' or 'teacher'
+#     thread_id = Column(Integer, ForeignKey(f"{DB_PREFIX}chat_threads.id"), index=True)
+#     sender_type = Column(String)
 #     sender_id = Column(Integer)
 #     message = Column(Text)
 #     translated_message = Column(Text, nullable=True)
 #     created_at = Column(DateTime, default=datetime.utcnow)
 #     is_read = Column(Boolean, default=False)
 #     thread_info = relationship("ChatThread")
-# ──────────────────────────────────────────────────────────────────────────
 
-class SupportTicket(Base):
-    __tablename__ = "support_tickets"
+# ── TeacherParentInteractionV2 ────────────────────────────────────────────────
+# REMOVED FROM ACTIVE MODELS: sgs_teacher_parent_interaction does NOT exist
+# on the SGS AWS RDS production database.  Keeping this class active would
+# cause Base.metadata.create_all() to try CREATE TABLE sgs_teacher_parent_interaction
+# on RDS — which would fail or leave an orphan table.
+#
+# Remarks feature is now served by TicketMessage (sender_type='TEACHER')
+# joined through SupportTicket.student_id.
+#
+# class TeacherParentInteractionV2(Base):
+#     __tablename__ = f"{DB_PREFIX}teacher_parent_interaction"
+#     id         = Column(Integer, primary_key=True, index=True)
+#     teacher_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"))
+#     student_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
+#     class_id   = Column(BigInteger, ForeignKey(f"{DB_PREFIX}class_master.class_id"))
+#     section    = Column(String)
+#     comments   = Column(Text)
+#     created_at = Column(TIMESTAMP, default=datetime.utcnow)
+#     teacher_info = relationship("TeacherMaster")
+#     student_info = relationship("StudentMaster")
 
-    ticket_id = Column(Integer, primary_key=True, index=True)
-    ticket_number = Column(String, unique=True, index=True)
-    parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
-    student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
-    subject = Column(String)
-    category = Column(String)
-    priority = Column(String)
-    status = Column(String, default="OPEN")
-    recipient_name = Column(String, nullable=True)  # Teacher name or department
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    parent_info = relationship("ParentMaster")
-    student_info = relationship("StudentMaster")
-
-class TicketMessage(Base):
-    __tablename__ = "ticket_messages"
-
-    message_id = Column(Integer, primary_key=True, index=True)
-    ticket_id = Column(Integer, ForeignKey("support_tickets.ticket_id"), index=True)
-    sender_type = Column(String)
-    sender_name = Column(String)
-    message = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    is_read = Column(Boolean, default=False)
-
-    ticket_info = relationship("SupportTicket")
-
-# ── LEGACY MODEL: LeaveRequest ────────────────────────────────────────────
-# Commented out — excluded from Base.metadata.create_all().
-# leave_requests table will NOT be created on next DB init.
-# Standalone leave-request endpoints disabled in routers/dashboard.py.
-# Leave requests now exist only as a Communication Center category in
-# routers/communication.py (SupportTicket with category="Leave Request").
-# Restore by un-commenting this block and re-enabling those endpoints/schemas.
+# ── LeaveRequest ──────────────────────────────────────────────────────────────
+# Leave requests now handled as Communication Center category.
+# Restore by un-commenting and re-enabling endpoints/schemas.
 #
 # class LeaveRequest(Base):
-#     __tablename__ = "leave_requests"
+#     __tablename__ = f"{DB_PREFIX}leave_requests"
 #     leave_request_id = Column(Integer, primary_key=True, index=True)
-#     student_id = Column(Integer, ForeignKey("student_master.student_id"), index=True)
-#     parent_id = Column(Integer, ForeignKey("parent_master.parent_id"), index=True)
+#     student_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}student_master.student_id"), index=True)
+#     parent_id = Column(Integer, ForeignKey(f"{DB_PREFIX}parent_master.parent_id"), index=True)
 #     from_date = Column(Date)
 #     to_date = Column(Date)
 #     reason = Column(String)
 #     parent_note = Column(Text, nullable=True)
-#     status = Column(String, default="Pending")  # Pending, Approved, Rejected
-#     reviewed_by = Column(Integer, ForeignKey("teacher_master.teacher_id"), nullable=True)
+#     status = Column(String, default="Pending")
+#     reviewed_by = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"), nullable=True)
 #     created_at = Column(DateTime, default=datetime.utcnow)
 #     student_info = relationship("StudentMaster")
 #     parent_info = relationship("ParentMaster")
-# ──────────────────────────────────────────────────────────────────────────

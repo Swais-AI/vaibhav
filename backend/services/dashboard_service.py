@@ -3,11 +3,14 @@ from sqlalchemy import func
 from fastapi import HTTPException
 from models import (
     StudentMaster, ClassMaster, AssignmentMaster, StudentSubmission,
-    QuizMaster, QuizResponse, TeacherParentInteractionV2, NoticeBoard,
+    QuizMaster, QuizResponse, NoticeBoard,
     SubjectMaster, ChapterMaster, TeacherMaster,
-    # AttendanceMaster — DISABLED: attendance module removed from parent portal.
-    # CallRequest     — DISABLED: call-request routes disabled; not queried here.
-    # SchoolEvent     — imported but unused; upcoming_events=[] is hardcoded.
+    SupportTicket, TicketMessage,
+    # AttendanceMaster        — DISABLED: attendance module removed from parent portal.
+    # CallRequest             — DISABLED: call-request routes disabled; not queried here.
+    # SchoolEvent             — imported but unused; upcoming_events=[] is hardcoded.
+    # TeacherParentInteractionV2 — REMOVED: table absent on SGS RDS.
+    #   Remarks now come from TicketMessage (sender_type='TEACHER') via SupportTicket.
 )
 from schemas import (
     DashboardResponse, StudentSchema, AssignmentSchema, QuizSchema,
@@ -137,17 +140,26 @@ def get_dashboard_data(db: Session, student_id: int):
     )
 
     # 4. Remarks
-    interactions = db.query(TeacherParentInteractionV2, TeacherMaster.full_name)\
-        .join(TeacherMaster, TeacherParentInteractionV2.teacher_id == TeacherMaster.teacher_id)\
-        .filter(TeacherParentInteractionV2.student_id == student_id)\
-        .filter(TeacherParentInteractionV2.comments.isnot(None))\
-        .filter(TeacherParentInteractionV2.comments != '').all()
-        
+    # Source: teacher replies inside Communication Center tickets for this student.
+    # TeacherParentInteractionV2 removed — sgs_teacher_parent_interaction does
+    # NOT exist on the SGS AWS RDS production database.
+    teacher_msgs = db.query(TicketMessage, SupportTicket)\
+        .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
+        .filter(SupportTicket.student_id == student_id)\
+        .filter(TicketMessage.sender_type == "TEACHER")\
+        .filter(TicketMessage.message.isnot(None))\
+        .filter(TicketMessage.message != '').all()
+
     all_remarks = []
-    for inter, teacher_name in interactions:
-        remark_date = inter.created_at or now
-        all_remarks.append({"teacher_name": teacher_name, "comment": inter.comments.strip(), "date_obj": remark_date, "date": remark_date.strftime("%Y-%m-%d")})
-        
+    for msg, ticket in teacher_msgs:
+        remark_date = msg.created_at or now
+        all_remarks.append({
+            "teacher_name": msg.sender_name or "Teacher",
+            "comment": msg.message.strip(),
+            "date_obj": remark_date,
+            "date": remark_date.strftime("%Y-%m-%d"),
+        })
+
     all_remarks.sort(key=lambda x: x["date_obj"], reverse=True)
     remark_list = [RemarkSchema(remark_id=i, teacher_name=r["teacher_name"], comment=r["comment"], date=r["date"]) for i, r in enumerate(all_remarks, start=1)]
 
