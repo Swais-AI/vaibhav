@@ -31,7 +31,7 @@ const getInitials = (name: string) => {
 };
 
 export default function RemarksHistory() {
-  const { studentId, setStudentId, language, setLanguage } = useDashboard();
+  const { studentId, setStudentId, parentId, language, setLanguage } = useDashboard();
   const [remarks,   setRemarks]   = useState<RemarkData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [subj,      setSubj]      = useState('All Subjects');
@@ -39,14 +39,16 @@ export default function RemarksHistory() {
   const { speaking, speak, fallbackLang } = useTTS();
 
   useEffect(() => {
+    if (!studentId) return; // wait for real studentId
     const loadHistory = async () => {
       setIsLoading(true);
       setSubj('All Subjects');
       try {
+        console.log('[SGS] Remarks: fetching for student_id', studentId);
         const result = await fetchRemarksHistory(studentId);
         setRemarks(result || []);
       } catch (err) {
-        console.error(err);
+        console.error('[SGS] Remarks: failed to load', err);
       } finally {
         setIsLoading(false);
       }
@@ -79,6 +81,7 @@ export default function RemarksHistory() {
       <TopBar
         studentId={studentId}
         setStudentId={setStudentId}
+        parentId={parentId}
         language={language}
         setLanguage={setLanguage}
         isLoading={isLoading}

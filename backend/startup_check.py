@@ -55,6 +55,7 @@ log = logging.getLogger(__name__)
 
 # The app will refuse to start if any of these are missing.
 REQUIRED_TABLES = [
+    "users_masters",        # FK root for teacher/staff — must exist before seeding
     "class_master",
     "student_master",
     "parent_master",

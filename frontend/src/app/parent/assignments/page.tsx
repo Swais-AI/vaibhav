@@ -42,7 +42,7 @@ const Badge = ({status}:{status:string}) => {
 };
 
 export default function AssignmentsPage() {
-  const { studentId, setStudentId, language, setLanguage } = useDashboard();
+  const { studentId, setStudentId, parentId, language, setLanguage } = useDashboard();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [analytics, setAnalytics] = useState<Analytics>({total:0,submitted:0,pending:0,overdue:0,graded:0,completion_pct:0});
   const [isLoading, setIsLoading] = useState(true);
@@ -60,7 +60,9 @@ export default function AssignmentsPage() {
   const notify = (m:string,ok=true) => { setToast({m,ok}); setTimeout(()=>setToast(null),3000); };
 
   const load = async () => {
+    if (!studentId) return; // wait for real studentId
     setIsLoading(true);
+    console.log('[SGS] Assignments: fetching for student_id', studentId);
     const [a,an] = await Promise.all([fetchAssignmentsHistory(studentId),fetchAssignmentAnalytics(studentId)]);
     setAssignments(a); setAnalytics(an); setIsLoading(false);
   };
@@ -103,7 +105,7 @@ export default function AssignmentsPage() {
 
   return (
     <div className="min-h-full flex flex-col font-sans" style={{background:'#F9FAFB'}}>
-      <TopBar studentId={studentId} setStudentId={setStudentId} language={language} setLanguage={setLanguage} isLoading={isLoading}/>
+      <TopBar studentId={studentId} setStudentId={setStudentId} parentId={parentId} language={language} setLanguage={setLanguage} isLoading={isLoading}/>
 
       {toast&&<div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold text-white ${toast.ok?'bg-green-600':'bg-red-600'}`}>{toast.m}</div>}
 

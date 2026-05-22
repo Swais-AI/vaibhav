@@ -17,7 +17,7 @@ type NoticeData = {
 };
 
 export default function NoticesHistory() {
-  const { studentId, setStudentId, language, setLanguage } = useDashboard();
+  const { studentId, setStudentId, parentId, language, setLanguage } = useDashboard();
   const [notices,     setNotices]     = useState<NoticeData[]>([]);
   const [isLoading,   setIsLoading]   = useState(true);
   const [filterClass, setFilterClass] = useState('All Classes');
@@ -25,14 +25,16 @@ export default function NoticesHistory() {
   const { speaking, speak, fallbackLang } = useTTS();
 
   useEffect(() => {
+    if (!studentId) return; // wait for real studentId
     const loadData = async () => {
       setIsLoading(true);
       setFilterClass('All Classes');
       try {
+        console.log('[SGS] Notices: fetching for student_id', studentId);
         const result = await fetchNoticesHistory(studentId);
         setNotices(result || []);
       } catch (err) {
-        console.error(err);
+        console.error('[SGS] Notices: failed to load', err);
       } finally {
         setIsLoading(false);
       }
@@ -74,7 +76,7 @@ export default function NoticesHistory() {
 
   return (
     <div className="min-h-full flex flex-col bg-[#F8FAFC] text-gray-800 font-sans">
-      <TopBar studentId={studentId} setStudentId={setStudentId} language={language} setLanguage={setLanguage} isLoading={isLoading} />
+      <TopBar studentId={studentId} setStudentId={setStudentId} parentId={parentId} language={language} setLanguage={setLanguage} isLoading={isLoading} />
 
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-5xl mx-auto">

@@ -19,7 +19,9 @@ import uuid
 
 from models import (
     SupportTicket, TicketMessage,
-    StudentMaster, TeacherMaster, SubjectMaster, ParentMaster,
+    StudentMaster, UsersMaster, SubjectMaster, ParentMaster,
+    # TeacherMaster removed: SubjectMaster.teacher_id now FKs to
+    # users_masters.user_id, so the teacher-lookup JOIN uses UsersMaster.
 )
 from schemas import (
     TeacherOptionSchema,
@@ -39,23 +41,25 @@ def get_available_recipients(student_id: int, db: Session = Depends(get_db)):
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
+    # SubjectMaster.teacher_id → users_masters.user_id (production FK).
+    # Join UsersMaster on user_id to resolve the teacher's display name.
     rows = (
-        db.query(TeacherMaster, SubjectMaster.subject_name)
-        .join(SubjectMaster, TeacherMaster.teacher_id == SubjectMaster.teacher_id)
+        db.query(UsersMaster, SubjectMaster.subject_name)
+        .join(SubjectMaster, UsersMaster.user_id == SubjectMaster.teacher_id)
         .filter(SubjectMaster.class_id == student.class_id)
         .all()
     )
 
     result: List[TeacherOptionSchema] = []
     seen: set = set()
-    for teacher, subject_name in rows:
-        if teacher.teacher_id not in seen:
+    for user, subject_name in rows:
+        if user.user_id not in seen:
             result.append(TeacherOptionSchema(
-                teacher_id=teacher.teacher_id,
-                name=teacher.full_name,
+                teacher_id=user.user_id,   # user_id used as the recipient identifier
+                name=user.full_name,
                 role=f"{subject_name} Teacher",
             ))
-            seen.add(teacher.teacher_id)
+            seen.add(user.user_id)
 
     # Always append standard school departments
     result += [

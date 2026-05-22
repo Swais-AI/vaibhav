@@ -110,15 +110,19 @@ const BAR_COLORS = [
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function ParentDashboard() {
-  const { studentId, setStudentId, language, setLanguage } = useDashboard();
+  const { studentId, setStudentId, parentId, language, setLanguage } = useDashboard();
   const [data,      setData]      = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error,     setError]     = useState<string | null>(null);
 
   useEffect(() => {
+    if (!studentId) return; // wait for real studentId from localStorage / ChildSelector
     const load = async () => {
       setIsLoading(true); setError(null); setData(null);
-      try { setData(await fetchDashboardData(studentId)); }
+      try {
+        console.log('[SGS] Dashboard: fetching for student_id', studentId);
+        setData(await fetchDashboardData(studentId));
+      }
       catch { setError('Failed to load dashboard. Please try again.'); }
       finally { setIsLoading(false); }
     };
@@ -184,6 +188,7 @@ export default function ParentDashboard() {
     <div className="min-h-full flex flex-col bg-[#F9FAFB] text-gray-800 font-sans">
       <TopBar
         studentId={studentId} setStudentId={setStudentId}
+        parentId={parentId}
         language={language}   setLanguage={setLanguage}
         isLoading={isLoading}
       />

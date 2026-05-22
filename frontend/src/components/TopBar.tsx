@@ -6,7 +6,7 @@ import { fetchNotifications } from '@/lib/api';
 import Link from 'next/link';
 import { BellIcon } from '@heroicons/react/24/outline';
 
-export default function TopBar({ studentId, setStudentId, language, setLanguage, isLoading = false }: any) {
+export default function TopBar({ studentId, setStudentId, parentId = 0, language, setLanguage, isLoading = false }: any) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
 
@@ -28,9 +28,10 @@ export default function TopBar({ studentId, setStudentId, language, setLanguage,
   return (
     <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 border-b border-gray-200 sticky top-0 z-50">
       <div className="flex items-center gap-4 w-full md:w-auto">
-        <ChildSelector 
-          currentStudentId={studentId} 
-          onSelect={setStudentId} 
+        <ChildSelector
+          currentStudentId={studentId}
+          onSelect={setStudentId}
+          parentId={parentId}
           disabled={isLoading}
         />
         <LanguageSelector 

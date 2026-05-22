@@ -37,18 +37,24 @@ export const submitAssignment = async (payload: { assignment_id: number; student
 };
 
 export const fetchQuizHistory = async (studentId: number) => {
-  const response = await api.get(`/quiz/history/${studentId}`);
-  return response.data;
+  try {
+    const response = await api.get(`/quiz/history/${studentId}`);
+    return response.data;
+  } catch { return []; }
 };
 
 export const fetchRemarksHistory = async (studentId: number) => {
-  const response = await api.get(`/remarks/history/${studentId}`);
-  return response.data;
+  try {
+    const response = await api.get(`/remarks/history/${studentId}`);
+    return response.data;
+  } catch { return []; }
 };
 
 export const fetchNoticesHistory = async (studentId: number) => {
-  const response = await api.get(`/notices/history/${studentId}`);
-  return response.data;
+  try {
+    const response = await api.get(`/notices/history/${studentId}`);
+    return response.data;
+  } catch { return []; }
 };
 
 // DISABLED: fetchCallRequestsHistory — no page imports this after dashboard
@@ -130,8 +136,10 @@ export const translateText = async (text: string, targetLang: string) => {
 // };
 
 export const fetchNotifications = async (studentId: number) => {
-  const response = await api.get(`/notifications/${studentId}`);
-  return response.data;
+  try {
+    const response = await api.get(`/notifications/${studentId}`);
+    return response.data;
+  } catch { return []; }
 };
 
 // DISABLED: Old support-ticket API helpers ─────────────────────────────────
@@ -171,7 +179,7 @@ export const fetchConversationRecipients = async (studentId: number) => {
   } catch { return []; }
 };
 
-export const fetchConversations = async (studentId: number, parentId = 1) => {
+export const fetchConversations = async (studentId: number, parentId: number) => {
   try {
     const response = await api.get(`/comm/conversations/${studentId}`, { params: { parent_id: parentId } });
     return response.data;

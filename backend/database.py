@@ -16,6 +16,8 @@ DB_PREFIX = os.getenv("DB_TABLE_PREFIX", "")
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
+    pool_pre_ping=True,   # test connections before reuse — prevents stale-conn crashes
+    pool_recycle=300,     # recycle after 5 min — avoids AWS RDS idle-timeout drops
     pool_size=5,
     max_overflow=10
 )

@@ -22,6 +22,12 @@ Alignment strategy
 • Columns that existed in the physical DB but were absent from the
   prior model (admission_no, subject_code, chapter_no, …) are now
   declared so the ORM can read/write them correctly.
+
+• Production FK alignment (v004):
+  sgs_subject_master.teacher_id,  sgs_class_master.class_teacher_id,
+  sgs_assignment_master.assigned_by, and sgs_notice_board.posted_by
+  all reference  sgs_users_masters.user_id  — NOT sgs_teacher_master.
+  UsersMaster is therefore the FK root for teacher-type lookups.
 """
 
 from sqlalchemy import (
@@ -33,18 +39,56 @@ from datetime import datetime
 from database import Base, DB_PREFIX
 
 
+# ── 0. UsersMaster ───────────────────────────────────────────────────────────
+# Production table: sgs_users_masters  (note the plural suffix)
+# Every teacher / staff member is a USER FIRST.  The FK columns
+#   sgs_subject_master.teacher_id
+#   sgs_class_master.class_teacher_id
+#   sgs_assignment_master.assigned_by
+#   sgs_notice_board.posted_by
+# all reference  users_masters.user_id,  NOT  teacher_master.teacher_id.
+#
+# role_id / school_id are FKs to sgs_roles / sgs_schools on RDS.
+# They are declared here as plain BigInteger (no FK constraint) to avoid
+# chaining in tables we don't model — matching v002's "nullable audit" pattern.
+
+class UsersMaster(Base):
+    __tablename__ = f"{DB_PREFIX}users_masters"
+
+    user_id       = Column(BigInteger, primary_key=True, index=True)
+    login_id      = Column(String, unique=True, index=True, nullable=True)
+    password_hash = Column(Text, nullable=True)
+    full_name     = Column(String, index=True)
+    # Physical RDS column is 'email_id' — aliased to 'email' for consistency
+    # with TeacherMaster, so service/route code uses the same attribute name.
+    email         = Column('email_id', String, nullable=True)
+    mobile_no     = Column(String, nullable=True)  # VARCHAR on RDS
+    # No FK constraints locally — sgs_roles / sgs_schools not modeled here.
+    role_id       = Column(BigInteger, nullable=True)
+    school_id     = Column(BigInteger, nullable=True)
+    is_active     = Column(Boolean, nullable=True)
+    # Audit
+    created_datetime  = Column(TIMESTAMP, nullable=True)
+    modified_datetime = Column(TIMESTAMP, nullable=True)
+    record_status     = Column(String, nullable=True)
+    version_no        = Column(Integer, nullable=True)
+
+
 # ── 1. ClassMaster ────────────────────────────────────────────────────────────
 
 class ClassMaster(Base):
     __tablename__ = f"{DB_PREFIX}class_master"
 
     class_id         = Column(BigInteger, primary_key=True, index=True)
-    # school_id / class_teacher_id already bigint in local DB; added to model
+    # school_id: plain column, no FK (sgs_schools not modeled here)
     school_id        = Column(BigInteger, nullable=True)
     class_name       = Column(String, index=True)
     section_name     = Column(String)
     academic_year    = Column(String)
-    class_teacher_id = Column(BigInteger, nullable=True)
+    # FK target corrected: production references users_masters.user_id,
+    # not teacher_master.teacher_id.  Nullable so the column can be NULL
+    # before teacher users are seeded.
+    class_teacher_id = Column(BigInteger, ForeignKey(f"{DB_PREFIX}users_masters.user_id"), nullable=True)
     # Audit
     created_datetime  = Column(TIMESTAMP, nullable=True)
     modified_datetime = Column(TIMESTAMP, nullable=True)
@@ -152,7 +196,9 @@ class SubjectMaster(Base):
     subject_name = Column(String)
     # subject_code was in the physical DB but missing from prior model
     subject_code = Column(String, nullable=True)
-    teacher_id   = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"))
+    # FK target corrected: production sgs_subject_master.teacher_id references
+    # users_masters.user_id, not teacher_master.teacher_id.
+    teacher_id   = Column(BigInteger, ForeignKey(f"{DB_PREFIX}users_masters.user_id"), nullable=True)
     # Audit
     created_datetime  = Column(TIMESTAMP, nullable=True)
     modified_datetime = Column(TIMESTAMP, nullable=True)
@@ -192,7 +238,9 @@ class AssignmentMaster(Base):
     assignment_title = Column(String)
     assignment_text  = Column(Text)
     due_date         = Column(Date)
-    assigned_by      = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"))
+    # FK target corrected: production sgs_assignment_master.assigned_by
+    # references users_masters.user_id, not teacher_master.teacher_id.
+    assigned_by      = Column(BigInteger, ForeignKey(f"{DB_PREFIX}users_masters.user_id"), nullable=True)
 
     # Physical RDS column is 'created_datetime'; Python attr stays 'created_at'
     # preserving all service, schema, and frontend references unchanged.
@@ -284,7 +332,9 @@ class NoticeBoard(Base):
     notice_text      = Column(Text)
     notice_date      = Column(Date)
     applicable_class = Column(String(50))
-    posted_by        = Column(BigInteger, ForeignKey(f"{DB_PREFIX}teacher_master.teacher_id"))
+    # FK target corrected: production sgs_notice_board.posted_by references
+    # users_masters.user_id, not teacher_master.teacher_id.
+    posted_by        = Column(BigInteger, ForeignKey(f"{DB_PREFIX}users_masters.user_id"), nullable=True)
 
     # Physical RDS column is 'created_datetime'; Python attr stays 'created_at'
     # dashboard_service.py uses NoticeBoard.created_at and notice.created_at —
@@ -296,7 +346,8 @@ class NoticeBoard(Base):
     record_status     = Column(String, nullable=True)
     version_no        = Column(Integer, nullable=True)
 
-    teacher_info = relationship("TeacherMaster")
+    # teacher_info relationship removed — posted_by now FKs to users_masters,
+    # not teacher_master.  Dashboard queries do explicit outerjoin on UsersMaster.
 
 
 # ── 13. SupportTicket ─────────────────────────────────────────────────────────

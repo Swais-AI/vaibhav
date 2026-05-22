@@ -255,12 +255,14 @@ function MessageBubble({
 
 function NewConversationModal({
   studentId,
+  parentId,
   language,
   recipients,
   onClose,
   onCreate,
 }: {
   studentId: number;
+  parentId: number;
   language: string;
   recipients: Recipient[];
   onClose: () => void;
@@ -303,7 +305,7 @@ function NewConversationModal({
     try {
       const conv = await createConversation({
         student_id:     studentId,
-        parent_id:      1,
+        parent_id:      parentId,
         subject:        subject.trim(),
         category,
         recipient_name: recipient.name,
@@ -508,7 +510,7 @@ function NewConversationModal({
 // ── Main Page ─────────────────────────────────────────────────────────────
 
 export default function CommunicationCenterPage() {
-  const { studentId, setStudentId, language, setLanguage } = useDashboard();
+  const { studentId, setStudentId, parentId, language, setLanguage } = useDashboard();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading,     setIsLoading]     = useState(true);
@@ -567,12 +569,13 @@ export default function CommunicationCenterPage() {
   const loadConversations = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await fetchConversations(studentId, 1);
+      console.log('[SGS] CommunicationCenter: loading conversations for student', studentId, 'parent', parentId);
+      const data = await fetchConversations(studentId, parentId);
       setConversations(data);
     } finally {
       setIsLoading(false);
     }
-  }, [studentId]);
+  }, [studentId, parentId]);
 
   useEffect(() => {
     setSelected(null);
@@ -659,6 +662,7 @@ export default function CommunicationCenterPage() {
       <TopBar
         studentId={studentId}
         setStudentId={setStudentId}
+        parentId={parentId}
         language={language}
         setLanguage={setLanguage}
         isLoading={isLoading}
@@ -885,6 +889,7 @@ export default function CommunicationCenterPage() {
       {showModal && (
         <NewConversationModal
           studentId={studentId}
+          parentId={parentId}
           language={language}
           recipients={recipients}
           onClose={() => {

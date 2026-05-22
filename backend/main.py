@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from database import engine, Base, DB_PREFIX
 import models
-from routers import dashboard, translation, communication
+from routers import dashboard, translation, communication, debug
 from startup_check import run_startup_checks
 import logging
 
@@ -43,6 +43,7 @@ app.add_middleware(
 app.include_router(dashboard.router, tags=["Dashboard"])
 app.include_router(translation.router, tags=["Translation"])
 app.include_router(communication.router)
+app.include_router(debug.router)   # dev-only: GET /debug/seeded-students, /debug/seeded-parents
 
 @app.get("/")
 def read_root():

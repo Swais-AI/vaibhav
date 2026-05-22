@@ -49,7 +49,7 @@ const CircularProgress = ({ pct, colorHex }: { pct: number; colorHex: string }) 
 };
 
 export default function QuizPerformancePage() {
-  const { studentId, setStudentId, language, setLanguage } = useDashboard();
+  const { studentId, setStudentId, parentId, language, setLanguage } = useDashboard();
   const [quizzes, setQuizzes] = useState<QuizDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -59,6 +59,7 @@ export default function QuizPerformancePage() {
   const [modalData, setModalData] = useState<QuizDetail | null>(null);
 
   useEffect(() => {
+    if (!studentId) return; // wait for real studentId
     const load = async () => {
       setIsLoading(true);
       setModalData(null);
@@ -66,10 +67,11 @@ export default function QuizPerformancePage() {
       setSearch('');
       setSubj('All');
       try {
+        console.log('[SGS] Quiz: fetching for student_id', studentId);
         const data = await fetchQuizHistory(studentId);
         setQuizzes(data);
       } catch (e) {
-        console.error('Failed to load quizzes');
+        console.error('[SGS] Quiz: failed to load quizzes', e);
       } finally {
         setIsLoading(false);
       }
@@ -95,7 +97,7 @@ export default function QuizPerformancePage() {
 
   return (
     <div className="min-h-full flex flex-col font-sans bg-[#F9FAFB]">
-      <TopBar studentId={studentId} setStudentId={setStudentId} language={language} setLanguage={setLanguage} isLoading={isLoading} />
+      <TopBar studentId={studentId} setStudentId={setStudentId} parentId={parentId} language={language} setLanguage={setLanguage} isLoading={isLoading} />
 
       <div className="flex-1 p-4 md:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">

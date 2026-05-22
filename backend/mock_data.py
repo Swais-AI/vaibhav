@@ -48,6 +48,7 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models import (
+    UsersMaster,
     ClassMaster,
     StudentMaster,
     ParentMaster,
@@ -109,6 +110,8 @@ def seed_data(verbose: bool = True) -> None:
         # ══════════════════════════════════════════════════════════════════════
         # 1. CLASSES
         #    class_name prefixed with TEST_ so cleanup can find them.
+        #    class_teacher_id is left NULL here and back-filled in section 5
+        #    once teacher-user PKs are available (FK → users_masters.user_id).
         # ══════════════════════════════════════════════════════════════════════
         if verbose:
             print("[1/12] Seeding classes...")
@@ -125,6 +128,7 @@ def seed_data(verbose: bool = True) -> None:
                 class_name=_name(cname),
                 section_name=sec,
                 academic_year=_name("2025-26"),
+                # class_teacher_id populated after teacher users are flushed (§5)
             )
             db.add(c)
             classes.append(c)
@@ -230,9 +234,6 @@ def seed_data(verbose: bool = True) -> None:
             t = TeacherMaster(
                 full_name=_name(tname),
                 email=_email(elocal),           # maps to physical col email_id
-                # Generate a 10-digit integer phone number.
-                # RDS sgs_teacher_master.phone is BIGINT — a Python str would
-                # raise psycopg2.errors.DatatypeMismatch on insert.
                 phone=random.randint(9_000_000_000, 9_999_999_999),
                 subject_name=_name(subj),
                 role="Teacher",
@@ -242,7 +243,46 @@ def seed_data(verbose: bool = True) -> None:
         db.flush()
 
         # ══════════════════════════════════════════════════════════════════════
+        # 5b. TEACHER USERS  (UsersMaster)
+        #
+        #     Production FK hierarchy:
+        #       sgs_subject_master.teacher_id     → sgs_users_masters.user_id
+        #       sgs_class_master.class_teacher_id → sgs_users_masters.user_id
+        #       sgs_assignment_master.assigned_by → sgs_users_masters.user_id
+        #       sgs_notice_board.posted_by        → sgs_users_masters.user_id
+        #
+        #     One UsersMaster row is created for every teacher_def.
+        #     After flushing, class_teacher_id is back-filled on existing
+        #     ClassMaster rows so all FK columns carry valid user_ids.
+        #
+        #     Identified by full_name LIKE 'TEST_%' (same prefix as teachers).
+        # ══════════════════════════════════════════════════════════════════════
+        if verbose:
+            print("[5b] Seeding teacher users (UsersMaster)...")
+
+        teacher_users = []
+        for tname, elocal, _subj in teacher_defs:
+            u = UsersMaster(
+                login_id=_email(elocal),          # unique login; seed-tagged email
+                password_hash="seed_dummy_hash",
+                full_name=_name(tname),
+                email=_email(elocal),             # maps to physical col email_id
+                mobile_no=str(random.randint(9_000_000_000, 9_999_999_999)),
+                is_active=True,
+            )
+            db.add(u)
+            teacher_users.append(u)
+        db.flush()   # populates user_id PKs
+
+        # Back-fill class_teacher_id now that user_ids are assigned.
+        # Round-robins teacher users across classes (1 teacher user per class).
+        for i, cls in enumerate(classes):
+            cls.class_teacher_id = teacher_users[i % len(teacher_users)].user_id
+        db.flush()
+
+        # ══════════════════════════════════════════════════════════════════════
         # 6. SUBJECTS
+        #    teacher_id → users_masters.user_id  (production FK target)
         #    Identified by subject_name LIKE 'TEST_%'
         # ══════════════════════════════════════════════════════════════════════
         if verbose:
@@ -251,12 +291,14 @@ def seed_data(verbose: bool = True) -> None:
         subject_names = ["Mathematics", "Science", "English"]
         subjects = []
         for cls in classes:
-            for sname, teacher in zip(subject_names, teachers[:3]):
+            # Pair each subject with the corresponding teacher user (by position).
+            # teacher_users[i].user_id is the correct FK for users_masters.
+            for sname, t_user in zip(subject_names, teacher_users[:3]):
                 sub = SubjectMaster(
                     class_id=cls.class_id,
                     subject_name=_name(sname),
                     subject_code=f"TEST-{sname[:3].upper()}",
-                    teacher_id=teacher.teacher_id,
+                    teacher_id=t_user.user_id,   # → users_masters.user_id
                 )
                 db.add(sub)
                 subjects.append(sub)
@@ -305,9 +347,10 @@ def seed_data(verbose: bool = True) -> None:
                 continue
 
             for _ in range(random.randint(10, 15)):
-                ch    = random.choice(student_chapters)
-                sub   = next(s for s in subjects if s.subject_id == ch.subject_id)
-                teach = next(t for t in teachers  if t.teacher_id == sub.teacher_id)
+                ch  = random.choice(student_chapters)
+                sub = next(s for s in subjects if s.subject_id == ch.subject_id)
+                # sub.teacher_id is already a users_masters.user_id (set in §6).
+                # No TeacherMaster lookup needed — assigned_by FKs to users_masters.
 
                 days_offset = random.randint(-90, 14)
                 due_date    = today + timedelta(days=days_offset)
@@ -319,7 +362,7 @@ def seed_data(verbose: bool = True) -> None:
                     ),
                     assignment_text=f"TEST_ Complete all exercises in {ch.chapter_name}.",
                     due_date=due_date,
-                    assigned_by=teach.teacher_id,
+                    assigned_by=sub.teacher_id,   # user_id → users_masters.user_id
                 )
                 db.add(assignment)
                 db.flush()   # need assignment_id for submission FK
@@ -392,8 +435,8 @@ def seed_data(verbose: bool = True) -> None:
 
         # ══════════════════════════════════════════════════════════════════════
         # 10. NOTICES
+        #     posted_by → users_masters.user_id  (production FK target)
         #     Identified by notice_title LIKE 'SEED_%'
-        #     Using SEED_ (not TEST_) to match the RDS convention for notices.
         # ══════════════════════════════════════════════════════════════════════
         if verbose:
             print("[10/12] Seeding notices...")
@@ -417,7 +460,7 @@ def seed_data(verbose: bool = True) -> None:
                     notice_text=f"TEST_ {ntext}",
                     notice_date=today - timedelta(days=days_ago),
                     applicable_class=cls.class_name,
-                    posted_by=random.choice(teachers).teacher_id,
+                    posted_by=random.choice(teacher_users).user_id,  # → users_masters
                 )
                 # created_at is aliased to physical col created_datetime
                 notice.created_at = now - timedelta(days=days_ago)
@@ -512,16 +555,17 @@ def seed_data(verbose: bool = True) -> None:
             print("\n" + "=" * 55)
             print("  ✓  Seed data inserted successfully")
             print("=" * 55)
-            print(f"  Classes     : {len(classes)}")
-            print(f"  Parents     : {len(parents)}")
-            print(f"  Students    : {len(students)}")
-            print(f"  Teachers    : {len(teachers)}")
-            print(f"  Subjects    : {len(subjects)}")
-            print(f"  Chapters    : {len(chapters)}")
+            print(f"  Teacher users (UsersMaster) : {len(teacher_users)}")
+            print(f"  Classes                    : {len(classes)}")
+            print(f"  Parents                    : {len(parents)}")
+            print(f"  Students                   : {len(students)}")
+            print(f"  Teachers (TeacherMaster)   : {len(teachers)}")
+            print(f"  Subjects                   : {len(subjects)}")
+            print(f"  Chapters                   : {len(chapters)}")
             print()
             print("  Every record carries a TEST_ or SEED_ marker.")
-            print("  Teacher remarks are seeded as TicketMessage rows")
-            print("  (sender_type='TEACHER') — no teacher_parent_interaction table needed.")
+            print("  FK columns (teacher_id / assigned_by / posted_by)")
+            print("  reference users_masters.user_id — aligned with SGS RDS.")
             print("  Run  python cleanup_seed.py          to preview cleanup.")
             print("  Run  python cleanup_seed.py --confirm  to delete.")
             print("=" * 55)

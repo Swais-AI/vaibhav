@@ -4,13 +4,15 @@ from fastapi import HTTPException
 from models import (
     StudentMaster, ClassMaster, AssignmentMaster, StudentSubmission,
     QuizMaster, QuizResponse, NoticeBoard,
-    SubjectMaster, ChapterMaster, TeacherMaster,
+    SubjectMaster, ChapterMaster, UsersMaster,
     SupportTicket, TicketMessage,
     # AttendanceMaster        — DISABLED: attendance module removed from parent portal.
     # CallRequest             — DISABLED: call-request routes disabled; not queried here.
     # SchoolEvent             — imported but unused; upcoming_events=[] is hardcoded.
     # TeacherParentInteractionV2 — REMOVED: table absent on SGS RDS.
     #   Remarks now come from TicketMessage (sender_type='TEACHER') via SupportTicket.
+    # TeacherMaster           — REMOVED from active imports: posted_by / assigned_by
+    #   now FK to users_masters.user_id; all name lookups use UsersMaster.
 )
 from schemas import (
     DashboardResponse, StudentSchema, AssignmentSchema, QuizSchema,
@@ -163,9 +165,9 @@ def get_dashboard_data(db: Session, student_id: int):
     all_remarks.sort(key=lambda x: x["date_obj"], reverse=True)
     remark_list = [RemarkSchema(remark_id=i, teacher_name=r["teacher_name"], comment=r["comment"], date=r["date"]) for i, r in enumerate(all_remarks, start=1)]
 
-    # 5. Notices
-    notices_query = db.query(NoticeBoard, TeacherMaster.full_name)\
-        .outerjoin(TeacherMaster, NoticeBoard.posted_by == TeacherMaster.teacher_id)\
+    # 5. Notices — posted_by FKs to users_masters.user_id on production.
+    notices_query = db.query(NoticeBoard, UsersMaster.full_name)\
+        .outerjoin(UsersMaster, NoticeBoard.posted_by == UsersMaster.user_id)\
         .filter(NoticeBoard.notice_text.isnot(None))\
         .filter(NoticeBoard.notice_text != '')\
         .order_by(NoticeBoard.created_at.desc()).all()

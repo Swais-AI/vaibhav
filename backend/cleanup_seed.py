@@ -29,16 +29,17 @@ DELETION ORDER (FK dependency chain — children before parents)
   2.  SupportTicket    (FK → ParentMaster, StudentMaster)
   3.  StudentSubmission(FK → AssignmentMaster, StudentMaster)
   4.  QuizResponse     (FK → QuizMaster, StudentMaster)
-  5.  NoticeBoard      (FK → TeacherMaster)
-  6.  AssignmentMaster (FK → ChapterMaster, TeacherMaster)
+  5.  NoticeBoard      (FK → UsersMaster)
+  6.  AssignmentMaster (FK → ChapterMaster, UsersMaster)
   7.  QuizMaster       (FK → ChapterMaster)
   8.  ParentStudentMap (FK → ParentMaster, StudentMaster)
   9.  ChapterMaster    (FK → SubjectMaster)
-  10. SubjectMaster    (FK → ClassMaster, TeacherMaster)
+  10. SubjectMaster    (FK → ClassMaster, UsersMaster)
   11. StudentMaster    (FK → ClassMaster)
   12. ParentMaster     (no FK dependencies)
-  13. TeacherMaster    (no FK dependencies)
-  14. ClassMaster      (no FK dependencies)
+  13. TeacherMaster    (no FK dependencies — standalone after v004)
+  14. ClassMaster      (FK → UsersMaster via class_teacher_id)
+  15. UsersMaster      (root — no FK dependencies on modeled tables)
 
 NOTE: TeacherParentInteractionV2 removed — sgs_teacher_parent_interaction
 does NOT exist on the SGS AWS RDS production database.
@@ -67,6 +68,7 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models import (
+    UsersMaster,
     ClassMaster,
     StudentMaster,
     ParentMaster,
@@ -106,6 +108,13 @@ def _collect_seed_ids(db: Session) -> dict:
     No writes are performed — this function is always safe to call.
     """
     # Root tables — identified directly by seed markers on their own columns
+
+    # UsersMaster: teacher-type users seeded by mock_data.py §5b.
+    # Identified by full_name LIKE 'TEST_%' (same convention as TeacherMaster).
+    seed_users = db.query(UsersMaster).filter(
+        UsersMaster.full_name.like(f"{SEED_NAME_PREFIX}%")
+    ).all()
+
     seed_classes  = db.query(ClassMaster).filter(
         ClassMaster.class_name.like(f"{SEED_NAME_PREFIX}%")
     ).all()
@@ -206,7 +215,8 @@ def _collect_seed_ids(db: Session) -> dict:
         ).all()
 
     return {
-        # Root tables (deleted last)
+        # Root tables (deleted last — UsersMaster is the true root)
+        "UsersMaster":               seed_users,
         "ClassMaster":               seed_classes,
         "TeacherMaster":             seed_teachers,
         "ParentMaster":              seed_parents,
@@ -246,7 +256,9 @@ def preview_seed_data(db: Session) -> dict:
     print("  DRY RUN — Seeded records found (nothing deleted yet)")
     print("=" * 60)
 
-    # Deletion order — children first so FK constraints are respected
+    # Deletion order — children first so FK constraints are respected.
+    # UsersMaster is the FK root (subject/class/assignment/notice all reference
+    # users_masters.user_id), so it must be deleted after those tables are clear.
     ordered_keys = [
         "TicketMessage",
         "SupportTicket",
@@ -262,6 +274,7 @@ def preview_seed_data(db: Session) -> dict:
         "ParentMaster",
         "TeacherMaster",
         "ClassMaster",
+        "UsersMaster",   # root — deleted last
     ]
 
     for key in ordered_keys:
@@ -401,11 +414,13 @@ def cleanup_seed_data(dry_run: bool = True) -> None:
         deleted += _delete_batch(seed["ChapterMaster"],              "ChapterMaster")
         deleted += _delete_batch(seed["SubjectMaster"],              "SubjectMaster")
 
-        # Step 5 — root records (no FK dependencies remain)
-        deleted += _delete_batch(seed["StudentMaster"],              "StudentMaster")
-        deleted += _delete_batch(seed["ParentMaster"],               "ParentMaster")
-        deleted += _delete_batch(seed["TeacherMaster"],              "TeacherMaster")
-        deleted += _delete_batch(seed["ClassMaster"],                "ClassMaster")
+        # Step 5 — root records (no FK dependencies remain by this point)
+        deleted += _delete_batch(seed["StudentMaster"],  "StudentMaster")
+        deleted += _delete_batch(seed["ParentMaster"],   "ParentMaster")
+        deleted += _delete_batch(seed["TeacherMaster"],  "TeacherMaster")
+        deleted += _delete_batch(seed["ClassMaster"],    "ClassMaster")
+        # UsersMaster last — it is the FK root for subject/class/assignment/notice
+        deleted += _delete_batch(seed["UsersMaster"],    "UsersMaster")
 
         # ── Commit ────────────────────────────────────────────────────────
         db.commit()
