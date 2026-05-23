@@ -206,17 +206,15 @@ export default function ParentDashboard() {
             <>
               {/* ── Greeting ── */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
-                <img
-                  src={`https://i.pravatar.cc/80?u=${studentId + 10}`}
-                  alt="Parent"
-                  className="w-12 h-12 rounded-full object-cover border-2 border-orange-100 shrink-0"
-                />
+                <div className="w-12 h-12 rounded-full bg-orange-200 flex items-center justify-center text-orange-700 font-black text-base border-2 border-orange-100 shrink-0">
+                  PS
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-400">{timeGreeting()},</p>
                   <p className="text-lg font-black text-gray-900 leading-tight">Priya Sharma 👋</p>
                   {studentName && (
                     <p className="text-xs text-gray-500 mt-0.5 truncate">
-                      Viewing <span className="font-semibold text-gray-700">{studentName}</span>
+                      Viewing <span className="font-semibold text-gray-700">{studentName}</span> Dashboard
                       {className && (
                         <span className="text-gray-400">
                           {' '}· Class {className}{section ? ` – ${section}` : ''}

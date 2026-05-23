@@ -8,7 +8,7 @@ export default function ParentLayout({
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans">
       <Sidebar />
-      <div className="flex-1 ml-64 flex flex-col">
+      <div className="flex-1 md:ml-64 flex flex-col min-w-0">
         {children}
       </div>
     </div>

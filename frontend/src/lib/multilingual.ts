@@ -222,6 +222,8 @@ export function useTTS() {
 
       utt.onend   = () => { speakingRef.current = null; setSpeaking(null); setFallbackLang(null); };
       utt.onerror = (ev) => {
+        // 'interrupted' is expected when cancel() is called before starting a new utterance
+        if (ev.error === 'interrupted') return;
         console.warn('[TTS] SpeechSynthesis error:', ev.error);
         speakingRef.current = null;
         setSpeaking(null);

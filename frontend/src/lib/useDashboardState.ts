@@ -8,30 +8,31 @@ import { useState, useEffect } from 'react';
  * firing requests with an invalid ID before localStorage is read or before
  * ChildSelector has auto-selected the first real child.
  *
- * Bootstrap flow for RDS testing:
- *   1. GET /debug/seeded-parents  → note the real parent_id
- *   2. In browser DevTools console:
- *        localStorage.setItem('sgs_parent_id', '<parent_id>')
- *   3. Refresh — ChildSelector reads the real parentId, fetches children,
- *      and auto-selects the first child (setting studentId automatically).
+ * Demo bootstrap: if no parent_id is stored in localStorage the hook defaults
+ * to parent_id=10 (the seeded demo parent). ChildSelector then auto-fetches
+ * that parent's children and selects the first one automatically.
  */
 export function useDashboardState() {
+  const [mounted,   setMounted]   = useState(false);
   const [studentId, setStudentId] = useState<number>(0); // 0 = not set yet
   const [parentId,  setParentId]  = useState<number>(0); // 0 = not set yet
   const [language,  setLanguage]  = useState<string>('en');
 
   // Read persisted values from localStorage once on mount (client-side only).
+  // Defaults parentId to 10 (seeded demo) when nothing is stored so the app
+  // loads with real data without any manual localStorage intervention.
   useEffect(() => {
     const savedStudent = localStorage.getItem('sgs_student_id');
     const savedParent  = localStorage.getItem('sgs_parent_id');
     const savedLang    = localStorage.getItem('sgs_language');
 
     const sid = savedStudent ? Number(savedStudent) : 0;
-    const pid = savedParent  ? Number(savedParent)  : 0;
+    const pid = savedParent  ? Number(savedParent)  : 10; // default: seeded demo parent
 
     if (sid > 0) setStudentId(sid);
     if (pid > 0) setParentId(pid);
     if (savedLang) setLanguage(savedLang);
+    setMounted(true);
 
     console.log('[SGS] localStorage → student_id:', sid, ' parent_id:', pid);
   }, []);
@@ -54,6 +55,7 @@ export function useDashboardState() {
   };
 
   return {
+    mounted,
     studentId,
     setStudentId: updateStudentId,
     parentId,

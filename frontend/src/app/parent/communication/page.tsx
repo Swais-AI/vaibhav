@@ -61,12 +61,11 @@ const CATEGORIES = [
   'Homework',
   'Behavior',
   'Exam / Test',
-  'Transport',
-  'Fees',
   'General Enquiry',
   'PTM Request',
-  // 'Attendance',          // removed – attendance module removed from portal
-  // 'Leave Clarification', // consolidated into Leave Request
+  // 'Transport' and 'Fees' removed — no corresponding backend teacher/dept entries
+  // 'Attendance'          removed — attendance module removed from portal
+  // 'Leave Clarification' removed — consolidated into Leave Request
 ];
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -75,8 +74,6 @@ const CATEGORY_COLOR: Record<string, string> = {
   'Homework':        'bg-purple-100 text-purple-700',
   'Behavior':        'bg-orange-100 text-orange-700',
   'Exam / Test':     'bg-red-100 text-red-600',
-  'Transport':       'bg-sky-100 text-sky-700',
-  'Fees':            'bg-green-100 text-green-700',
   'General Enquiry': 'bg-gray-100 text-gray-600',
   'PTM Request':     'bg-pink-100 text-pink-700',
 };
@@ -565,8 +562,9 @@ export default function CommunicationCenterPage() {
     return map;
   }, [conversations, dispSubjects, dispPreviews]);
 
-  // Load conversations
+  // Load conversations — guard against firing before real IDs are available
   const loadConversations = useCallback(async () => {
+    if (!studentId || !parentId) return;
     setIsLoading(true);
     try {
       console.log('[SGS] CommunicationCenter: loading conversations for student', studentId, 'parent', parentId);
@@ -580,8 +578,10 @@ export default function CommunicationCenterPage() {
   useEffect(() => {
     setSelected(null);
     setMessages([]);
-    loadConversations();
-  }, [loadConversations]);
+    if (studentId && parentId) {
+      loadConversations();
+    }
+  }, [loadConversations, studentId, parentId]);
 
   useEffect(() => {
     if (showModal && recipients.length === 0) {
@@ -638,10 +638,10 @@ export default function CommunicationCenterPage() {
   };
 
   const handleConversationCreated = (conv: Conversation) => {
-    setConversations(prev => [conv, ...prev]);
-    setSelected(conv);
     setShowModal(false);
     setRecipients([]);
+    // Reload full list so newly created conversation appears with correct metadata
+    loadConversations().then(() => setSelected(conv));
   };
 
   const filtered = useMemo(() => conversations.filter(c => {
