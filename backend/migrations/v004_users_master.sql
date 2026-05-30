@@ -5,11 +5,11 @@
 -- ============================================================
 -- WHY THIS IS NEEDED
 -- ─────────────────
--- Production SGS RDS schema:
---   sgs_subject_master.teacher_id     → sgs_users_masters(user_id)
---   sgs_class_master.class_teacher_id → sgs_users_masters(user_id)
---   sgs_assignment_master.assigned_by → sgs_users_masters(user_id)
---   sgs_notice_board.posted_by        → sgs_users_masters(user_id)
+-- Production SSS RDS schema:
+--   sss_subject_master.teacher_id     → sss_users_masters(user_id)
+--   sss_class_master.class_teacher_id → sss_users_masters(user_id)
+--   sss_assignment_master.assigned_by → sss_users_masters(user_id)
+--   sss_notice_board.posted_by        → sss_users_masters(user_id)
 --
 -- The local database previously had these columns pointing at
 -- teacher_master.teacher_id.  Inserting seed rows with valid
@@ -40,18 +40,18 @@
 --   Windows PowerShell:
 --     $env:PGPASSWORD = "1234"
 --     & "C:\Program Files\PostgreSQL\17\bin\psql.exe" `
---         -U postgres -d mydb_sgs `
+--         -U postgres -d mydb_sss `
 --         -f "backend/migrations/v004_users_master.sql"
 --
 --   Linux / macOS:
---     PGPASSWORD=1234 psql -U postgres -d mydb_sgs \
+--     PGPASSWORD=1234 psql -U postgres -d mydb_sss \
 --         -f backend/migrations/v004_users_master.sql
 -- ============================================================
 
 BEGIN;
 
 -- ── Step 1: Create users_masters (local, no prefix) ──────────────────────────
--- Mirrors the column layout of sgs_users_masters on RDS.
+-- Mirrors the column layout of sss_users_masters on RDS.
 -- GENERATED ALWAYS AS IDENTITY gives auto-increment bigint PKs locally,
 -- matching the RDS bigint sequence behaviour.
 
@@ -62,8 +62,8 @@ CREATE TABLE IF NOT EXISTS users_masters (
     full_name         VARCHAR,
     email_id          VARCHAR,           -- physical col name (model aliases to 'email')
     mobile_no         VARCHAR,           -- VARCHAR on RDS (not bigint)
-    role_id           BIGINT,            -- FK to sgs_roles — not enforced locally
-    school_id         BIGINT,            -- FK to sgs_schools — not enforced locally
+    role_id           BIGINT,            -- FK to sss_roles — not enforced locally
+    school_id         BIGINT,            -- FK to sss_schools — not enforced locally
     is_active         BOOLEAN DEFAULT TRUE,
     created_datetime  TIMESTAMP,
     modified_datetime TIMESTAMP,

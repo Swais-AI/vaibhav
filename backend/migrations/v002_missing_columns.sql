@@ -1,7 +1,7 @@
 -- ============================================================
--- SGS Parent Dashboard  |  v002 — ORM Gap Fix
+-- SSS Parent Dashboard  |  v002 — ORM Gap Fix
 -- File   : backend/migrations/v002_missing_columns.sql
--- Target : Local PostgreSQL (mydb_sgs)
+-- Target : Local PostgreSQL (mydb_sss)
 -- Safe   : Idempotent — re-runnable, never drops, never nullifies data
 -- Purpose: Adds every column the updated ORM models.py now declares
 --          but the local DB does not yet have, and renames the four
@@ -25,7 +25,7 @@
 --   teacher_parent_interaction, ticket_messages
 --
 -- RUN:
---   psql -U postgres -d mydb_sgs -f v002_missing_columns.sql
+--   psql -U postgres -d mydb_sss -f v002_missing_columns.sql
 -- ============================================================
 
 BEGIN;

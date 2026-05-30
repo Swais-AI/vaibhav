@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
  * ChildSelector has auto-selected the first real child.
  *
  * Demo bootstrap: if no parent_id is stored in localStorage the hook defaults
- * to parent_id=10 (the seeded demo parent). ChildSelector then auto-fetches
+ * to parent_id=1 (the seeded demo parent). ChildSelector then auto-fetches
  * that parent's children and selects the first one automatically.
  */
 export function useDashboardState() {
@@ -22,36 +22,36 @@ export function useDashboardState() {
   // Defaults parentId to 10 (seeded demo) when nothing is stored so the app
   // loads with real data without any manual localStorage intervention.
   useEffect(() => {
-    const savedStudent = localStorage.getItem('sgs_student_id');
-    const savedParent  = localStorage.getItem('sgs_parent_id');
-    const savedLang    = localStorage.getItem('sgs_language');
+    const savedStudent = localStorage.getItem('sss_student_id');
+    const savedParent  = localStorage.getItem('sss_parent_id');
+    const savedLang    = localStorage.getItem('sss_language');
 
-    const sid = savedStudent ? Number(savedStudent) : 0;
-    const pid = savedParent  ? Number(savedParent)  : 10; // default: seeded demo parent
+    const sid = savedStudent ? Number(savedStudent) : 1;
+    const pid = savedParent  ? Number(savedParent)  : 1; // default: seeded demo parent
 
     if (sid > 0) setStudentId(sid);
     if (pid > 0) setParentId(pid);
     if (savedLang) setLanguage(savedLang);
     setMounted(true);
 
-    console.log('[SGS] localStorage → student_id:', sid, ' parent_id:', pid);
+    console.log('[SSS] localStorage → student_id:', sid, ' parent_id:', pid);
   }, []);
 
   const updateStudentId = (id: number) => {
     setStudentId(id);
-    localStorage.setItem('sgs_student_id', id.toString());
-    console.log('[SGS] studentId updated →', id);
+    localStorage.setItem('sss_student_id', id.toString());
+    console.log('[SSS] studentId updated →', id);
   };
 
   const updateParentId = (id: number) => {
     setParentId(id);
-    localStorage.setItem('sgs_parent_id', id.toString());
-    console.log('[SGS] parentId updated →', id);
+    localStorage.setItem('sss_parent_id', id.toString());
+    console.log('[SSS] parentId updated →', id);
   };
 
   const updateLanguage = (lang: string) => {
     setLanguage(lang);
-    localStorage.setItem('sgs_language', lang);
+    localStorage.setItem('sss_language', lang);
   };
 
   return {

@@ -11,16 +11,17 @@ logging.basicConfig(level=logging.INFO)
 
 # ── Startup table validation ──────────────────────────────────────────────────
 # Checks that every table the app actively queries exists in the connected DB.
-# On SGS RDS (DB_TABLE_PREFIX="sgs_") this will warn about absent legacy tables
-# (e.g. sgs_teacher_parent_interaction) without blocking startup, and will raise
+# On SSS RDS (DB_TABLE_PREFIX="sss_") this will warn about absent legacy tables
+# (e.g. sss_teacher_parent_interaction) without blocking startup, and will raise
 # immediately if a *required* table is missing instead of crashing mid-request.
-run_startup_checks(raise_on_error=True)
 
 # Create tables (IF NOT EXISTS — safe for both fresh and existing databases)
 Base.metadata.create_all(bind=engine)
 
+run_startup_checks(raise_on_error=True)
+
 # Back-fill recipient_name on existing support_tickets tables.
-# Uses DB_PREFIX so this is correct for both local and sgs_* RDS targets.
+# Uses DB_PREFIX so this is correct for both local and sss_* RDS targets.
 with engine.connect() as _conn:
     _conn.execute(text(
         f"ALTER TABLE {DB_PREFIX}support_tickets "
@@ -33,11 +34,12 @@ app = FastAPI(title="Parent Dashboard API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For dev purposes, restrict in prod
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Include routers
 app.include_router(dashboard.router, tags=["Dashboard"])

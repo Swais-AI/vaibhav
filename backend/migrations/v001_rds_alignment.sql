@@ -1,13 +1,13 @@
 -- ============================================================
--- SGS Parent Dashboard  |  Local → RDS Schema Alignment
+-- SSS Parent Dashboard  |  Local → RDS Schema Alignment
 -- File   : backend/migrations/v001_rds_alignment.sql
--- Target : Local PostgreSQL (mydb_sgs), plain table names
+-- Target : Local PostgreSQL (mydb_sss), plain table names
 -- Safe   : Fully idempotent — re-runnable without side effects
 -- Scope  : Column renames, bigint promotions, audit columns,
 --          and missing-column back-fills for all 13 active tables.
 --
 -- RUN ORDER:
---   psql -U postgres -d mydb_sgs -f v001_rds_alignment.sql
+--   psql -U postgres -d mydb_sss -f v001_rds_alignment.sql
 -- ============================================================
 
 BEGIN;
@@ -299,7 +299,7 @@ END $$;
 
 -- support_tickets: student_id promoted to bigint for FK consistency
 -- (RDS keeps this as integer but we promote locally so the FK constraint
---  to sgs_student_master.student_id bigint stays valid on fresh installs)
+--  to sss_student_master.student_id bigint stays valid on fresh installs)
 DO $$ BEGIN
     IF (SELECT data_type FROM information_schema.columns
         WHERE table_name = 'support_tickets' AND column_name = 'student_id') = 'integer' THEN

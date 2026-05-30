@@ -43,7 +43,7 @@ export default function TopBar({ studentId, setStudentId, parentId = 0, language
       <div className="flex items-center gap-3 w-full md:w-auto">
         {/* Hamburger — mobile only; toggles sidebar via custom event */}
         <button
-          onClick={() => window.dispatchEvent(new Event('sgsSidebarToggle'))}
+          onClick={() => window.dispatchEvent(new Event('sssSidebarToggle'))}
           className="md:hidden text-gray-500 hover:text-gray-700 transition-colors shrink-0"
           aria-label="Open menu"
         >

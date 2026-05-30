@@ -4,8 +4,8 @@ SQLAlchemy ORM models — Parent Dashboard
 Alignment strategy
 ──────────────────
 • __tablename__ uses the DB_PREFIX env-var so the same codebase
-  targets local plain tables (prefix="") or RDS sgs_* tables
-  (prefix="sgs_") without any code changes.
+  targets local plain tables (prefix="") or RDS sss_* tables
+  (prefix="sss_") without any code changes.
 
 • Column aliasing:  attr = Column('rds_col_name', Type, …)
   Maps the physical RDS column name to the existing Python
@@ -24,9 +24,9 @@ Alignment strategy
   declared so the ORM can read/write them correctly.
 
 • Production FK alignment (v004):
-  sgs_subject_master.teacher_id,  sgs_class_master.class_teacher_id,
-  sgs_assignment_master.assigned_by, and sgs_notice_board.posted_by
-  all reference  sgs_users_masters.user_id  — NOT sgs_teacher_master.
+  sss_subject_master.teacher_id,  sss_class_master.class_teacher_id,
+  sss_assignment_master.assigned_by, and sss_notice_board.posted_by
+  all reference  sss_users_masters.user_id  — NOT sss_teacher_master.
   UsersMaster is therefore the FK root for teacher-type lookups.
 """
 
@@ -40,15 +40,15 @@ from database import Base, DB_PREFIX
 
 
 # ── 0. UsersMaster ───────────────────────────────────────────────────────────
-# Production table: sgs_users_masters  (note the plural suffix)
+# Production table: sss_users_masters  (note the plural suffix)
 # Every teacher / staff member is a USER FIRST.  The FK columns
-#   sgs_subject_master.teacher_id
-#   sgs_class_master.class_teacher_id
-#   sgs_assignment_master.assigned_by
-#   sgs_notice_board.posted_by
+#   sss_subject_master.teacher_id
+#   sss_class_master.class_teacher_id
+#   sss_assignment_master.assigned_by
+#   sss_notice_board.posted_by
 # all reference  users_masters.user_id,  NOT  teacher_master.teacher_id.
 #
-# role_id / school_id are FKs to sgs_roles / sgs_schools on RDS.
+# role_id / school_id are FKs to sss_roles / sss_schools on RDS.
 # They are declared here as plain BigInteger (no FK constraint) to avoid
 # chaining in tables we don't model — matching v002's "nullable audit" pattern.
 
@@ -63,7 +63,7 @@ class UsersMaster(Base):
     # with TeacherMaster, so service/route code uses the same attribute name.
     email         = Column('email_id', String, nullable=True)
     mobile_no     = Column(String, nullable=True)  # VARCHAR on RDS
-    # No FK constraints locally — sgs_roles / sgs_schools not modeled here.
+    # No FK constraints locally — sss_roles / sss_schools not modeled here.
     role_id       = Column(BigInteger, nullable=True)
     school_id     = Column(BigInteger, nullable=True)
     is_active     = Column(Boolean, nullable=True)
@@ -80,7 +80,7 @@ class ClassMaster(Base):
     __tablename__ = f"{DB_PREFIX}class_master"
 
     class_id         = Column(BigInteger, primary_key=True, index=True)
-    # school_id: plain column, no FK (sgs_schools not modeled here)
+    # school_id: plain column, no FK (sss_schools not modeled here)
     school_id        = Column(BigInteger, nullable=True)
     class_name       = Column(String, index=True)
     section_name     = Column(String)
@@ -125,7 +125,7 @@ class StudentMaster(Base):
 
 
 # ── 3. ParentMaster ───────────────────────────────────────────────────────────
-# RDS schema (sgs_parent_master) matches local exactly — no renames required.
+# RDS schema (sss_parent_master) matches local exactly — no renames required.
 
 class ParentMaster(Base):
     __tablename__ = f"{DB_PREFIX}parent_master"
@@ -167,7 +167,7 @@ class TeacherMaster(Base):
     # so all backend code and API responses are unchanged.
     email      = Column('email_id', String)
 
-    # phone is BIGINT on SGS RDS (sgs_teacher_master.phone bigint).
+    # phone is BIGINT on SSS RDS (sss_teacher_master.phone bigint).
     # Model changed from String → BigInteger to match RDS exactly.
     # Seed script generates 10-digit integers (9_000_000_000 – 9_999_999_999).
     # Local PostgreSQL column is VARCHAR — PostgreSQL silently casts an integer
@@ -196,7 +196,7 @@ class SubjectMaster(Base):
     subject_name = Column(String)
     # subject_code was in the physical DB but missing from prior model
     subject_code = Column(String, nullable=True)
-    # FK target corrected: production sgs_subject_master.teacher_id references
+    # FK target corrected: production sss_subject_master.teacher_id references
     # users_masters.user_id, not teacher_master.teacher_id.
     teacher_id   = Column(BigInteger, ForeignKey(f"{DB_PREFIX}users_masters.user_id"), nullable=True)
     # Audit
@@ -238,7 +238,7 @@ class AssignmentMaster(Base):
     assignment_title = Column(String)
     assignment_text  = Column(Text)
     due_date         = Column(Date)
-    # FK target corrected: production sgs_assignment_master.assigned_by
+    # FK target corrected: production sss_assignment_master.assigned_by
     # references users_masters.user_id, not teacher_master.teacher_id.
     assigned_by      = Column(BigInteger, ForeignKey(f"{DB_PREFIX}users_masters.user_id"), nullable=True)
 
@@ -332,7 +332,7 @@ class NoticeBoard(Base):
     notice_text      = Column(Text)
     notice_date      = Column(Date)
     applicable_class = Column(String(50))
-    # FK target corrected: production sgs_notice_board.posted_by references
+    # FK target corrected: production sss_notice_board.posted_by references
     # users_masters.user_id, not teacher_master.teacher_id.
     posted_by        = Column(BigInteger, ForeignKey(f"{DB_PREFIX}users_masters.user_id"), nullable=True)
 
@@ -351,7 +351,7 @@ class NoticeBoard(Base):
 
 
 # ── 13. SupportTicket ─────────────────────────────────────────────────────────
-# RDS schema (sgs_support_tickets) matches local — no renames required.
+# RDS schema (sss_support_tickets) matches local — no renames required.
 # student_id promoted to BigInteger locally for FK constraint consistency.
 
 class SupportTicket(Base):
@@ -374,7 +374,7 @@ class SupportTicket(Base):
 
 
 # ── 14. TicketMessage ─────────────────────────────────────────────────────────
-# RDS schema (sgs_ticket_messages) matches local — no changes required.
+# RDS schema (sss_ticket_messages) matches local — no changes required.
 
 class TicketMessage(Base):
     __tablename__ = f"{DB_PREFIX}ticket_messages"
@@ -466,9 +466,9 @@ class TicketMessage(Base):
 #     thread_info = relationship("ChatThread")
 
 # ── TeacherParentInteractionV2 ────────────────────────────────────────────────
-# REMOVED FROM ACTIVE MODELS: sgs_teacher_parent_interaction does NOT exist
-# on the SGS AWS RDS production database.  Keeping this class active would
-# cause Base.metadata.create_all() to try CREATE TABLE sgs_teacher_parent_interaction
+# REMOVED FROM ACTIVE MODELS: sss_teacher_parent_interaction does NOT exist
+# on the SSS AWS RDS production database.  Keeping this class active would
+# cause Base.metadata.create_all() to try CREATE TABLE sss_teacher_parent_interaction
 # on RDS — which would fail or leave an orphan table.
 #
 # Remarks feature is now served by TicketMessage (sender_type='TEACHER')

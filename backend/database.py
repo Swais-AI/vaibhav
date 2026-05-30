@@ -7,11 +7,11 @@ from sqlalchemy.orm import sessionmaker
 load_dotenv()
 
 # Use environment variable for AWS RDS readiness, default to local PostgreSQL
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:1234@localhost:5432/mydb_sgs")
-
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres: Bangaram1%40@localhost:5432/my_dbsss")
+print(f"Using database URL: {SQLALCHEMY_DATABASE_URL}")  # Debug log to confirm correct DB URL is loaded                    
 # Runtime table-name prefix switch.
 # Local dev  : DB_TABLE_PREFIX=""      → plain names  (assignment_master, …)
-# RDS / prod : DB_TABLE_PREFIX="sgs_"  → sgs_ names   (sgs_assignment_master, …)
+# RDS / prod : DB_TABLE_PREFIX="sss_"  → sss_ names   (sss_assignment_master, …)
 DB_PREFIX = os.getenv("DB_TABLE_PREFIX", "")
 
 engine = create_engine(
@@ -21,6 +21,7 @@ engine = create_engine(
     pool_size=5,
     max_overflow=10
 )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

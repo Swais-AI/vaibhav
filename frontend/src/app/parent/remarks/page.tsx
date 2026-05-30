@@ -44,11 +44,11 @@ export default function RemarksHistory() {
       setIsLoading(true);
       setSubj('All Subjects');
       try {
-        console.log('[SGS] Remarks: fetching for student_id', studentId);
+        console.log('[SSS] Remarks: fetching for student_id', studentId);
         const result = await fetchRemarksHistory(studentId);
         setRemarks(result || []);
       } catch (err) {
-        console.error('[SGS] Remarks: failed to load', err);
+        console.error('[SSS] Remarks: failed to load', err);
       } finally {
         setIsLoading(false);
       }

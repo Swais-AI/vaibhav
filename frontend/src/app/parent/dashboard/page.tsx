@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -120,7 +120,7 @@ export default function ParentDashboard() {
     const load = async () => {
       setIsLoading(true); setError(null); setData(null);
       try {
-        console.log('[SGS] Dashboard: fetching for student_id', studentId);
+        console.log('[SSS] Dashboard: fetching for student_id', studentId);
         setData(await fetchDashboardData(studentId));
       }
       catch { setError('Failed to load dashboard. Please try again.'); }
@@ -165,11 +165,11 @@ export default function ParentDashboard() {
   const recMsgTexts    = useMemo(() => recs.map((r: any)      => r.message      ?? ''), [recs]);
   const recActionTexts = useMemo(() => recs.map((r: any)      => r.action_text  ?? ''), [recs]);
 
-  const { displayed: dispAlertMsgs,    translating: translatingAlerts    } = useTranslation(alertMsgTexts,  language);
+  const { displayed: dispAlertMsss,    translating: translatingAlerts    } = useTranslation(alertMsgTexts,  language);
   const { displayed: dispDeadlineTitles, translating: translatingDeadlines } = useTranslation(deadTitleTexts, language);
-  const { displayed: dispRecMsgs,      translating: translatingRecs      } = useTranslation(recMsgTexts,    language);
+  const { displayed: dispRecMsss,      translating: translatingRecs      } = useTranslation(recMsgTexts,    language);
   const { displayed: dispRecActions }                                        = useTranslation(recActionTexts, language);
-
+0
   const translating = translatingAlerts || translatingDeadlines || translatingRecs;
 
   // Learning Progress card (replaces Attendance stat)
@@ -280,7 +280,7 @@ export default function ParentDashboard() {
                           <AlertPill type={a.type} priority={a.priority} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-800 truncate">
-                              {dispAlertMsgs[i] ?? a.message}
+                              {dispAlertMsss[i] ?? a.message}
                             </p>
                             {a.subject && (
                               <p className="text-[11px] text-gray-400 truncate">{a.subject}</p>
@@ -396,7 +396,7 @@ export default function ParentDashboard() {
                           <span className="text-lg shrink-0 mt-0.5">{recIcon(r.type)}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-800">
-                              {dispRecMsgs[i] ?? r.message}
+                              {dispRecMsss[i] ?? r.message}
                             </p>
                             <p className="text-[11px] text-gray-400 mt-0.5">
                               {dispRecActions[i] ?? r.action_text}

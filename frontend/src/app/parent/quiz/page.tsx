@@ -67,11 +67,11 @@ export default function QuizPerformancePage() {
       setSearch('');
       setSubj('All');
       try {
-        console.log('[SGS] Quiz: fetching for student_id', studentId);
+        console.log('[SSS] Quiz: fetching for student_id', studentId);
         const data = await fetchQuizHistory(studentId);
         setQuizzes(data);
       } catch (e) {
-        console.error('[SGS] Quiz: failed to load quizzes', e);
+        console.error('[SSS] Quiz: failed to load quizzes', e);
       } finally {
         setIsLoading(false);
       }

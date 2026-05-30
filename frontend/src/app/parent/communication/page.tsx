@@ -548,7 +548,7 @@ export default function CommunicationCenterPage() {
 
   const { displayed: dispSubjects, translating: translatingConvs } = useTranslation(convSubjectTexts, language);
   const { displayed: dispPreviews }                                 = useTranslation(convPreviewTexts, language);
-  const { displayed: msgTranslations, translating: translatingMsgs } = useTranslation(msgTexts, language);
+  const { displayed: msgTranslations, translating: translatingMsss } = useTranslation(msgTexts, language);
 
   // Build conv_id → {subject, preview} map from translated parallel arrays
   const convTranslations = useMemo(() => {
@@ -567,7 +567,7 @@ export default function CommunicationCenterPage() {
     if (!studentId || !parentId) return;
     setIsLoading(true);
     try {
-      console.log('[SGS] CommunicationCenter: loading conversations for student', studentId, 'parent', parentId);
+      console.log('[SSS] CommunicationCenter: loading conversations for student', studentId, 'parent', parentId);
       const data = await fetchConversations(studentId, parentId);
       setConversations(data);
     } finally {
@@ -785,7 +785,7 @@ export default function CommunicationCenterPage() {
                       >
                         {selected.status}
                       </span>
-                      {translatingMsgs && (
+                      {translatingMsss && (
                         <span className="text-[10px] text-orange-400 font-semibold flex items-center gap-1">
                           <span className="w-2.5 h-2.5 rounded-full border border-orange-400 border-t-transparent animate-spin inline-block" />
                           Translating…

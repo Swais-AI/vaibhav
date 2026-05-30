@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import Image from "next/image";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -11,8 +12,8 @@ export default function Sidebar() {
   // Listen for toggle events dispatched by TopBar's hamburger button
   useEffect(() => {
     const handleToggle = () => setIsOpen(prev => !prev);
-    window.addEventListener('sgsSidebarToggle', handleToggle);
-    return () => window.removeEventListener('sgsSidebarToggle', handleToggle);
+    window.addEventListener('sssSidebarToggle', handleToggle);
+    return () => window.removeEventListener('sssSidebarToggle', handleToggle);
   }, []);
 
   // Auto-close sidebar when route changes (mobile navigation)
@@ -48,13 +49,23 @@ export default function Sidebar() {
         `}
       >
         <div className="p-6 flex items-center gap-3 border-b border-gray-700">
-          <div className="bg-orange-600 p-2 rounded-lg">
-            <span className="text-xl">📖</span>
+          <div className="">
+            <span className="text-xl"></span>
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="font-bold text-lg leading-tight">SGS-SWAIS</h1>
-            <p className="text-xs text-gray-400">Parent Dashboard</p>
-          </div>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+  <Image
+    src="/logo.jpg"
+    alt="SSS School Logo"
+    width={45}
+    height={45}
+    className="rounded-full"
+  />
+
+  <div>
+    <h1 className="font-bold text-lg leading-tight">SSS SCHOOL</h1>
+    <p className="text-xs text-gray-400">Parent Dashboard</p>
+  </div>
+</div>
           {/* Close button — mobile only */}
           <button
             onClick={() => setIsOpen(false)}

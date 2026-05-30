@@ -30,11 +30,11 @@ export default function NoticesHistory() {
       setIsLoading(true);
       setFilterClass('All Classes');
       try {
-        console.log('[SGS] Notices: fetching for student_id', studentId);
+        console.log('[SSS] Notices: fetching for student_id', studentId);
         const result = await fetchNoticesHistory(studentId);
         setNotices(result || []);
       } catch (err) {
-        console.error('[SGS] Notices: failed to load', err);
+        console.error('[SSS] Notices: failed to load', err);
       } finally {
         setIsLoading(false);
       }

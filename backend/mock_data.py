@@ -246,10 +246,10 @@ def seed_data(verbose: bool = True) -> None:
         # 5b. TEACHER USERS  (UsersMaster)
         #
         #     Production FK hierarchy:
-        #       sgs_subject_master.teacher_id     → sgs_users_masters.user_id
-        #       sgs_class_master.class_teacher_id → sgs_users_masters.user_id
-        #       sgs_assignment_master.assigned_by → sgs_users_masters.user_id
-        #       sgs_notice_board.posted_by        → sgs_users_masters.user_id
+        #       sss_subject_master.teacher_id     → sss_users_masters.user_id
+        #       sss_class_master.class_teacher_id → sss_users_masters.user_id
+        #       sss_assignment_master.assigned_by → sss_users_masters.user_id
+        #       sss_notice_board.posted_by        → sss_users_masters.user_id
         #
         #     One UsersMaster row is created for every teacher_def.
         #     After flushing, class_teacher_id is back-filled on existing
@@ -474,7 +474,7 @@ def seed_data(verbose: bool = True) -> None:
         #     Messages identified by ticket_id IN [seeded ticket IDs]
         #
         #     NOTE: TeacherParentInteractionV2 seeding removed — that table
-        #     (teacher_parent_interaction) does NOT exist on SGS RDS.
+        #     (teacher_parent_interaction) does NOT exist on SSS RDS.
         #     Teacher remarks are now represented by TicketMessage rows with
         #     sender_type='TEACHER' so the Remarks widget still has data.
         # ══════════════════════════════════════════════════════════════════════
@@ -491,8 +491,7 @@ def seed_data(verbose: bool = True) -> None:
 
         for student in students:
             # Find this student's parent from the mappings we just inserted
-            parent_maps = [
-                pm for pm in db.query(ParentStudentMap)
+            parent_maps = [           pm for pm in db.query(ParentStudentMap)
                              .filter(ParentStudentMap.student_id == student.student_id)
                              .all()
             ]
@@ -565,7 +564,7 @@ def seed_data(verbose: bool = True) -> None:
             print()
             print("  Every record carries a TEST_ or SEED_ marker.")
             print("  FK columns (teacher_id / assigned_by / posted_by)")
-            print("  reference users_masters.user_id — aligned with SGS RDS.")
+            print("  reference users_masters.user_id — aligned with SSS RDS.")
             print("  Run  python cleanup_seed.py          to preview cleanup.")
             print("  Run  python cleanup_seed.py --confirm  to delete.")
             print("=" * 55)

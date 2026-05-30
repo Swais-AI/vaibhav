@@ -27,7 +27,7 @@ from models import (
     # DISABLED: CallRequest   — call-request routes commented out below.
     # DISABLED: AttendanceMaster — attendance endpoints commented out below.
     # DISABLED: LeaveRequest     — leave-request endpoints commented out below.
-    # DISABLED: TeacherParentInteractionV2 — table absent on SGS RDS; remarks
+    # DISABLED: TeacherParentInteractionV2 — table absent on SSS RDS; remarks
     #           now come from TicketMessage (sender_type='TEACHER') instead.
     # NOTE: TeacherMaster removed — assigned_by / posted_by now FK to
     #       users_masters.user_id; all teacher-name JOINs use UsersMaster.
@@ -279,9 +279,9 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
         .filter(StudentSubmission.teacher_remarks != '').all()
 
     # Source 2: teacher replies in Communication Center tickets for this student.
-    # Replaces TeacherParentInteractionV2 (table absent on SGS RDS).
+    # Replaces TeacherParentInteractionV2 (table absent on SSS RDS).
     # sender_name is already stored on each TicketMessage; no extra join needed.
-    teacher_msgs = db.query(TicketMessage, SupportTicket)\
+    teacher_msss = db.query(TicketMessage, SupportTicket)\
         .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
         .filter(SupportTicket.student_id == student_id)\
         .filter(TicketMessage.sender_type == "TEACHER")\
@@ -302,7 +302,7 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
         })
         idx += 1
 
-    for msg, ticket in teacher_msgs:
+    for msg, ticket in teacher_msss:
         remark_date = msg.created_at or datetime.utcnow()
         all_remarks.append({
             "remark_id": idx,
@@ -405,11 +405,11 @@ def get_notifications(student_id: int, db: Session = Depends(get_db)):
     notifications = []
     
     # 1. Unread Ticket Replies
-    unread_msgs = db.query(TicketMessage, SupportTicket)\
+    unread_msss = db.query(TicketMessage, SupportTicket)\
         .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
         .filter(SupportTicket.student_id == student_id, TicketMessage.sender_type != "PARENT", TicketMessage.is_read == False).all()
         
-    for msg, ticket in unread_msgs:
+    for msg, ticket in unread_msss:
         notifications.append(NotificationSchema(
             id=f"msg_{msg.message_id}", type="ticket_reply", title=f"Reply on {ticket.ticket_number}",
             message=msg.message[:50] + "...", date=msg.created_at.isoformat() if msg.created_at else "",
