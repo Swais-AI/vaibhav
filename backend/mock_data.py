@@ -427,7 +427,7 @@ def seed_data(verbose: bool = True) -> None:
                     db.add(QuizResponse(
                         quiz_id=quiz.quiz_id,
                         student_id=student.student_id,
-                        score=round(random.uniform(5.0, 20.0), 1),
+                        score=round(random.uniform(5.0, 20.0), 2),
                         completed_flag=True,
                     ))
 
@@ -586,3 +586,6 @@ def seed_data(verbose: bool = True) -> None:
 
 if __name__ == "__main__":
     seed_data()
+import os
+
+USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "false").lower() == "true"
