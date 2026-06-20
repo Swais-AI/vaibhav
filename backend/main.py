@@ -40,6 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from startup_check import run_startup_checks
 
 # Include routers
 app.include_router(dashboard.router, tags=["Dashboard"])

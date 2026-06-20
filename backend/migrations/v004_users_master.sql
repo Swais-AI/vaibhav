@@ -1,7 +1,7 @@
 -- ============================================================
 -- v004_users_master.sql
 -- Create local users_masters table and re-point four FK columns
--- from teacher_master.teacher_id → users_masters.user_id
+-- from teacher_masters.teacher_id → users_masters.user_id
 -- ============================================================
 -- WHY THIS IS NEEDED
 -- ─────────────────
@@ -12,7 +12,7 @@
 --   sss_notice_board.posted_by        → sss_users_masters(user_id)
 --
 -- The local database previously had these columns pointing at
--- teacher_master.teacher_id.  Inserting seed rows with valid
+-- teacher_masters.teacher_id.  Inserting seed rows with valid
 -- users_masters.user_id values against the old FK caused
 -- PostgreSQL FK-violation errors.
 --
@@ -21,7 +21,7 @@
 --   2. NULLs out the four FK columns (old teacher_id values are
 --      not valid users_masters.user_id values — the tables have
 --      separate ID sequences).
---   3. Drops the old FK constraints that pointed at teacher_master.
+--   3. Drops the old FK constraints that pointed at teacher_masters.
 --   4. Adds new FK constraints pointing at users_masters.user_id.
 --
 -- SAFETY GUARANTEES
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS users_masters (
 
 -- Step 1 complete: users_masters table created (or already existed).
 
--- ── Step 2: NULL out FK columns that currently reference teacher_master ───────
+-- ── Step 2: NULL out FK columns that currently reference teacher_masters ───────
 -- Existing rows carry teacher_id values that do NOT exist in users_masters.
 -- NULLing them is safe because all four columns are nullable (no NOT NULL
 -- constraint in the local schema), and fresh seed data will repopulate them.
@@ -85,7 +85,7 @@ UPDATE notice_board      SET posted_by       = NULL WHERE posted_by        IS NO
 
 -- Step 2 complete: FK columns NULLed on subject_master, class_master, assignment_master, notice_board.
 
--- ── Step 3: Drop old FK constraints (pointing at teacher_master) ──────────────
+-- ── Step 3: Drop old FK constraints (pointing at teacher_masters) ──────────────
 -- Constraint names follow PostgreSQL's default naming convention used by
 -- SQLAlchemy: {table}_{column}_fkey.  IF EXISTS keeps the script re-runnable.
 

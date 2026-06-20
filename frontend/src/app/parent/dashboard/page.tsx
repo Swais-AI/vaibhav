@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -120,7 +120,7 @@ export default function ParentDashboard() {
     const load = async () => {
       setIsLoading(true); setError(null); setData(null);
       try {
-        console.log('[SSS] Dashboard: fetching for student_id', studentId);
+        console.log('[SGS] Dashboard: fetching for student_id', studentId);
         setData(await fetchDashboardData(studentId));
       }
       catch { setError('Failed to load dashboard. Please try again.'); }
@@ -165,24 +165,31 @@ export default function ParentDashboard() {
   const recMsgTexts    = useMemo(() => recs.map((r: any)      => r.message      ?? ''), [recs]);
   const recActionTexts = useMemo(() => recs.map((r: any)      => r.action_text  ?? ''), [recs]);
 
-  const { displayed: dispAlertMsss,    translating: translatingAlerts    } = useTranslation(alertMsgTexts,  language);
+  const { displayed: dispAlertMsgs,    translating: translatingAlerts    } = useTranslation(alertMsgTexts,  language);
   const { displayed: dispDeadlineTitles, translating: translatingDeadlines } = useTranslation(deadTitleTexts, language);
-  const { displayed: dispRecMsss,      translating: translatingRecs      } = useTranslation(recMsgTexts,    language);
+  const { displayed: dispRecMsgs,      translating: translatingRecs      } = useTranslation(recMsgTexts,    language);
   const { displayed: dispRecActions }                                        = useTranslation(recActionTexts, language);
-0
+
   const translating = translatingAlerts || translatingDeadlines || translatingRecs;
 
-  // Learning Progress card (replaces Attendance stat)
+  // Learning Progress: combine assignment completion (60%) + quiz avg (40%)
   const assignmentCompletion = data?.assignment_completion_pct ?? null;
-  const learningValue =
-    assignmentCompletion !== null ? `${assignmentCompletion}%` :
-    displayAvg          !== null ? `${displayAvg}%`           : '—';
+  const combinedLearning =
+    assignmentCompletion !== null && displayAvg !== null
+      ? Math.round(assignmentCompletion * 0.6 + displayAvg * 0.4)
+      : assignmentCompletion !== null
+        ? Math.round(assignmentCompletion)
+        : displayAvg !== null
+          ? Math.round(displayAvg)
+          : null;
+  const learningValue = combinedLearning !== null ? `${combinedLearning}%` : '—';
   const learningLabel =
-    assignmentCompletion !== null
-      ? (assignmentCompletion >= 80 ? 'Strong completion' : assignmentCompletion >= 60 ? 'Good progress' : 'Needs follow-up')
-      : displayAvg !== null
-        ? (displayAvg >= 70 ? 'Active engagement' : 'Review recommended')
-        : 'Tracking progress';
+    combinedLearning === null   ? 'Tracking progress'    :
+    combinedLearning >= 80      ? 'Strong performance'   :
+    combinedLearning >= 60      ? 'Good progress'        :
+    combinedLearning >= 40      ? 'Needs improvement'    : 'Needs attention';
+
+  const actionRequiredCount = data?.action_required_count ?? (alerts.filter((a: any) => a.priority === 'HIGH').length);
 
   return (
     <div className="min-h-full flex flex-col bg-[#F9FAFB] text-gray-800 font-sans">
@@ -265,7 +272,7 @@ export default function ParentDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                 <SectionCard
-                  title="Action Required"
+                  title={actionRequiredCount > 0 ? `Action Required (${actionRequiredCount})` : 'Action Required'}
                   action={alerts.length > 0 ? { label: 'All Assignments →', href: '/parent/assignments' } : undefined}
                 >
                   {alerts.length === 0 ? (
@@ -280,7 +287,7 @@ export default function ParentDashboard() {
                           <AlertPill type={a.type} priority={a.priority} />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-800 truncate">
-                              {dispAlertMsss[i] ?? a.message}
+                              {dispAlertMsgs[i] ?? a.message}
                             </p>
                             {a.subject && (
                               <p className="text-[11px] text-gray-400 truncate">{a.subject}</p>
@@ -396,7 +403,7 @@ export default function ParentDashboard() {
                           <span className="text-lg shrink-0 mt-0.5">{recIcon(r.type)}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-800">
-                              {dispRecMsss[i] ?? r.message}
+                              {dispRecMsgs[i] ?? r.message}
                             </p>
                             <p className="text-[11px] text-gray-400 mt-0.5">
                               {dispRecActions[i] ?? r.action_text}

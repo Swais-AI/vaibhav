@@ -19,7 +19,7 @@ import uuid
 
 from models import (
     SupportTicket, TicketMessage,
-    StudentMaster, UsersMaster, SubjectMaster, ParentMaster,
+    StudentMasters, UsersMaster, SubjectMaster, ParentMaster,
     # TeacherMaster removed: SubjectMaster.teacher_id now FKs to
     # users_masters.user_id, so the teacher-lookup JOIN uses UsersMaster.
 )
@@ -37,7 +37,7 @@ router = APIRouter(prefix="/comm", tags=["Communication"])
 
 @router.get("/teachers/{student_id}", response_model=List[TeacherOptionSchema])
 def get_available_recipients(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
+    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 

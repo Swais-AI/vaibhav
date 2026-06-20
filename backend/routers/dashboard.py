@@ -1,6 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from database import get_db
 from typing import List, Dict, Any
 from datetime import datetime, date, timedelta
@@ -20,16 +21,16 @@ from schemas import (
     # DISABLED: AnalyticsResponse — analytics module removed from frontend.
 )
 from models import (
-    ParentStudentMap, StudentMaster, ClassMaster, AssignmentMaster, SubjectMaster,
+    ParentStudentMap, StudentMasters, ClassMaster, AssignmentMaster, SubjectMaster,
     ChapterMaster, StudentSubmission, QuizMaster, QuizResponse,
     UsersMaster, NoticeBoard,
     SupportTicket, TicketMessage,
     # DISABLED: CallRequest   — call-request routes commented out below.
     # DISABLED: AttendanceMaster — attendance endpoints commented out below.
     # DISABLED: LeaveRequest     — leave-request endpoints commented out below.
-    # DISABLED: TeacherParentInteractionV2 — table absent on SSS RDS; remarks
+    # DISABLED: TeacherParentInteractionV2 — table absent on SGS RDS; remarks
     #           now come from TicketMessage (sender_type='TEACHER') instead.
-    # NOTE: TeacherMaster removed — assigned_by / posted_by now FK to
+    # NOTE: TeacherMasters removed — assigned_by / posted_by now FK to
     #       users_masters.user_id; all teacher-name JOINs use UsersMaster.
 )
 
@@ -71,7 +72,7 @@ def get_dashboard(student_id: int, db: Session = Depends(get_db)):
 # def get_communication_timeline(student_id: int, db: Session = Depends(get_db)):
 #     try:
 #         timeline = []
-#         calls = db.query(CallRequest, TeacherMaster.full_name).outerjoin(...).all()
+#         calls = db.query(CallRequest, TeacherMasters.full_name).outerjoin(...).all()
 #         ... (full implementation preserved in git history)
 #         return [TimelineItemSchema(**item) for item in timeline]
 #     except Exception as e:
@@ -80,9 +81,9 @@ def get_dashboard(student_id: int, db: Session = Depends(get_db)):
 
 @router.get("/parents/{parent_id}/children", response_model=List[MappedChildSchema])
 def get_parent_children(parent_id: int, db: Session = Depends(get_db)):
-    children_query = db.query(StudentMaster, ClassMaster)\
-        .join(ParentStudentMap, ParentStudentMap.student_id == StudentMaster.student_id)\
-        .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
+    children_query = db.query(StudentMasters, ClassMaster)\
+        .join(ParentStudentMap, ParentStudentMap.student_id == StudentMasters.student_id)\
+        .join(ClassMaster, StudentMasters.class_id == ClassMaster.class_id)\
         .filter(ParentStudentMap.parent_id == parent_id).all()
 
     result = []
@@ -98,7 +99,7 @@ def get_parent_children(parent_id: int, db: Session = Depends(get_db)):
 
 @router.get("/assignments/history/{student_id}", response_model=List[AssignmentSchema])
 def get_assignments_history(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
+    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
     if not student:
         logger.warning("[assignments/history] student_id=%s not found → returning []", student_id)
         return []
@@ -145,7 +146,7 @@ def get_assignments_history(student_id: int, db: Session = Depends(get_db)):
 
 @router.get("/assignments/analytics/{student_id}", response_model=AssignmentAnalyticsResponse)
 def get_assignment_analytics(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
+    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
     if not student:
         logger.warning("[assignments/analytics] student_id=%s not found → returning zeroes", student_id)
         return AssignmentAnalyticsResponse(total=0, submitted=0, pending=0, overdue=0, graded=0, completion_pct=0.0)
@@ -214,7 +215,7 @@ def submit_assignment(request: AssignmentSubmitRequest, db: Session = Depends(ge
 
 @router.get("/quiz/history/{student_id}", response_model=List[QuizDetailResponse])
 def get_quiz_history(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
+    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
     if not student:
         logger.warning("[quiz/history] student_id=%s not found → returning []", student_id)
         return []
@@ -279,9 +280,9 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
         .filter(StudentSubmission.teacher_remarks != '').all()
 
     # Source 2: teacher replies in Communication Center tickets for this student.
-    # Replaces TeacherParentInteractionV2 (table absent on SSS RDS).
+    # Replaces TeacherParentInteractionV2 (table absent on SGS RDS).
     # sender_name is already stored on each TicketMessage; no extra join needed.
-    teacher_msss = db.query(TicketMessage, SupportTicket)\
+    teacher_msgs = db.query(TicketMessage, SupportTicket)\
         .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
         .filter(SupportTicket.student_id == student_id)\
         .filter(TicketMessage.sender_type == "TEACHER")\
@@ -294,15 +295,17 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
         remark_date = sub.submitted_at or datetime.utcnow()
         all_remarks.append({
             "remark_id": idx,
-            "teacher_name": teacher_name,
+            "teacher_name": teacher_name or "Teacher",
             "subject": subject_name,
             "comment": sub.teacher_remarks.strip(),
             "date_obj": remark_date,
-            "date": remark_date.strftime("%d %b %Y")
+            "date": remark_date.strftime("%d %b %Y"),
+            "ticket_id": None,
+            "is_read": True,  # submission remarks are always considered read
         })
         idx += 1
 
-    for msg, ticket in teacher_msss:
+    for msg, ticket in teacher_msgs:
         remark_date = msg.created_at or datetime.utcnow()
         all_remarks.append({
             "remark_id": idx,
@@ -310,7 +313,9 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
             "subject": ticket.subject or "General",
             "comment": msg.message.strip(),
             "date_obj": remark_date,
-            "date": remark_date.strftime("%d %b %Y")
+            "date": remark_date.strftime("%d %b %Y"),
+            "ticket_id": ticket.ticket_id,
+            "is_read": bool(msg.is_read),
         })
         idx += 1
 
@@ -320,20 +325,31 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
 
 @router.get("/notices/history/{student_id}", response_model=List[NoticeSchema])
 def get_notices_history(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
+
+    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
     if not student:
         logger.warning("[notices/history] student_id=%s not found → returning []", student_id)
         return []
-    
-    # We optionally could match student's class name with applicable_class, but since we 
-    # changed the DB, let's just pull all notices and filter by something reasonable or just return all for now 
-    # (assuming all notices are relevant to the parent in this view).
+
+    class_info = db.query(ClassMaster).filter(ClassMaster.class_id == student.class_id).first()
+    class_name = class_info.class_name if class_info else None
+
     notices_query = db.query(NoticeBoard, UsersMaster.full_name)\
         .outerjoin(UsersMaster, NoticeBoard.posted_by == UsersMaster.user_id)\
         .filter(NoticeBoard.notice_text.isnot(None))\
-        .filter(NoticeBoard.notice_text != '')\
-        .order_by(NoticeBoard.created_at.desc()).all()
-        
+        .filter(NoticeBoard.notice_text != '')
+
+    if class_name:
+        notices_query = notices_query.filter(
+            or_(
+                NoticeBoard.applicable_class == class_name,
+                NoticeBoard.applicable_class == 'All',
+                NoticeBoard.applicable_class.is_(None),
+            )
+        )
+
+    notices_query = notices_query.order_by(NoticeBoard.created_at.desc()).all()
+
     result = [
         NoticeSchema(
             notice_id=n.notice_id,
@@ -344,7 +360,7 @@ def get_notices_history(student_id: int, db: Session = Depends(get_db)):
             posted_by_name=t or "Admin"
         ) for n, t in notices_query
     ]
-    logger.info("[notices/history] student_id=%s → %d notices", student_id, len(result))
+    logger.info("[notices/history] student_id=%s class=%s → %d notices", student_id, class_name, len(result))
     return result
 
 # ── DISABLED: Call-request routes ────────────────────────────────────────
@@ -400,39 +416,77 @@ def get_notices_history(student_id: int, db: Session = Depends(get_db)):
 # @router.post("/tickets/{ticket_id}/messages", ...)
 # ──────────────────────────────────────────────────────────────────────────
 
+@router.get("/notifications/unread-count/{student_id}")
+def get_unread_count(student_id: int, db: Session = Depends(get_db)):
+    """Returns total unread teacher messages across all conversations for this student."""
+    count = db.query(TicketMessage)\
+        .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
+        .filter(
+            SupportTicket.student_id == student_id,
+            TicketMessage.sender_type == "TEACHER",
+            TicketMessage.is_read == False,
+        ).count()
+    return {"student_id": student_id, "unread_comm_count": count}
+
+
 @router.get("/notifications/{student_id}", response_model=List[NotificationSchema])
 def get_notifications(student_id: int, db: Session = Depends(get_db)):
     notifications = []
-    
-    # 1. Unread Ticket Replies
-    unread_msss = db.query(TicketMessage, SupportTicket)\
-        .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
-        .filter(SupportTicket.student_id == student_id, TicketMessage.sender_type != "PARENT", TicketMessage.is_read == False).all()
-        
-    for msg, ticket in unread_msss:
-        notifications.append(NotificationSchema(
-            id=f"msg_{msg.message_id}", type="ticket_reply", title=f"Reply on {ticket.ticket_number}",
-            message=msg.message[:50] + "...", date=msg.created_at.isoformat() if msg.created_at else "",
-            is_read=False, link="/parent/communication"
-        ))
-        
-    # 2. Recent Announcements (mocked unread for today)
-    from datetime import date, timedelta
     today = date.today()
-    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
+
+    # 1. Unread Teacher messages in Communication Center
+    unread_msgs = db.query(TicketMessage, SupportTicket)\
+        .join(SupportTicket, TicketMessage.ticket_id == SupportTicket.ticket_id)\
+        .filter(
+            SupportTicket.student_id == student_id,
+            TicketMessage.sender_type == "TEACHER",
+            TicketMessage.is_read == False,
+        ).order_by(TicketMessage.created_at.desc()).all()
+
+    for msg, ticket in unread_msgs[:5]:
+        notifications.append(NotificationSchema(
+            id=f"msg_{msg.message_id}",
+            type="ticket_reply",
+            title=f"Reply from {msg.sender_name or 'Teacher'}",
+            message=(msg.message[:80] + "…") if len(msg.message) > 80 else msg.message,
+            date=msg.created_at.isoformat() if msg.created_at else "",
+            is_read=False,
+            link="/parent/communication",
+        ))
+
+    # 2. Unread Teacher remarks (new ticket messages of type TEACHER not yet read)
+    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
+
+    # 3. Recent class notices (is_read tracked client-side via localStorage)
     if student:
-        # We fetch all recent notices since class_id is no longer an int relation
-        notices = db.query(NoticeBoard).order_by(NoticeBoard.created_at.desc()).limit(2).all()
+    
+        class_info = db.query(ClassMaster).filter(ClassMaster.class_id == student.class_id).first()
+        class_name = class_info.class_name if class_info else None
+        notice_q = db.query(NoticeBoard)\
+            .filter(NoticeBoard.notice_text.isnot(None))\
+            .filter(NoticeBoard.notice_text != '')
+        if class_name:
+            notice_q = notice_q.filter(
+                or_(
+                    NoticeBoard.applicable_class == class_name,
+                    NoticeBoard.applicable_class == 'All',
+                    NoticeBoard.applicable_class.is_(None),
+                )
+            )
+        notices = notice_q.order_by(NoticeBoard.created_at.desc()).limit(5).all()
         for n in notices:
-            if n.created_at and n.created_at.date() >= (today - timedelta(days=2)):
-                notifications.append(NotificationSchema(
-                    id=f"not_{n.notice_id}", type="announcement", title="New Announcement",
-                    message=n.notice_title or "Notice", date=n.created_at.isoformat(),
-                    is_read=False, link="/parent/notices"
-                ))
-                
+            notifications.append(NotificationSchema(
+                id=f"not_{n.notice_id}",
+                type="announcement",
+                title=n.notice_title or "New Notice",
+                message=(n.notice_text[:80] + "…") if n.notice_text and len(n.notice_text) > 80 else (n.notice_text or ""),
+                date=n.created_at.isoformat() if n.created_at else today.isoformat(),
+                is_read=False,  # read state tracked client-side
+                link=f"/parent/notices?open={n.notice_id}",
+            ))
+
     notifications.sort(key=lambda x: x.date, reverse=True)
-    return notifications
+    return notifications[:10]
 
 
 # ── DISABLED: Attendance Endpoints ────────────────────────────────────────
@@ -474,4 +528,3 @@ def get_notifications(student_id: int, db: Session = Depends(get_db)):
 # def update_leave_status(leave_request_id: int, update: LeaveStatusUpdate, db: Session = Depends(get_db)):
 #     ... (full implementation preserved in git history)
 # ──────────────────────────────────────────────────────────────────────────
-

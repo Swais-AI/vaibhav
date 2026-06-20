@@ -22,7 +22,7 @@ WHAT THIS SCRIPT INTENTIONALLY DOES NOT DO
 
 SEED MARKERS (used by cleanup_seed.py)
 ───────────────────────────────────────
-  full_name  starts with  "TEST_"     → ClassMaster, StudentMaster,
+  full_name  starts with  "TEST_"     → ClassMaster, StudentMasters,
                                          ParentMaster, TeacherMaster
   email      contains     "_seed@"    → ParentMaster, TeacherMaster
   notice_title starts with "SEED_"   → NoticeBoard
@@ -50,7 +50,7 @@ from database import SessionLocal
 from models import (
     UsersMaster,
     ClassMaster,
-    StudentMaster,
+    StudentMasters,
     ParentMaster,
     ParentStudentMap,
     TeacherMaster,
@@ -178,7 +178,7 @@ def seed_data(verbose: bool = True) -> None:
         ]
         students = []
         for fname, cls, sec, roll in student_defs:
-            s = StudentMaster(
+            s = StudentMasters(
                 full_name=_name(fname),
                 class_id=cls.class_id,
                 section=sec,

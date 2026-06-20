@@ -27,7 +27,7 @@ export function useDashboardState() {
     const savedLang    = localStorage.getItem('sss_language');
 
     const sid = savedStudent ? Number(savedStudent) : 1;
-    const pid = savedParent  ? Number(savedParent)  : 1; // default: seeded demo parent
+    const pid = savedParent  ? Number(savedParent)  : 1; 
 
     if (sid > 0) setStudentId(sid);
     if (pid > 0) setParentId(pid);

@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from fastapi import HTTPException
 from models import (
-    StudentMaster, ClassMaster, AssignmentMaster, StudentSubmission, 
+    StudentMasters, ClassMaster, AssignmentMaster, StudentSubmission, 
     QuizMaster, QuizResponse, SubjectMaster, ChapterMaster, AttendanceMaster
 )
 from schemas import AnalyticsResponse, SubjectPerformanceData, StudentSchema
@@ -33,9 +33,9 @@ from datetime import date, datetime, timedelta
 
 def get_analytics_data(db: Session, student_id: int):
     # 1. Student Info
-    student_query = db.query(StudentMaster, ClassMaster)\
-        .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
-        .filter(StudentMaster.student_id == student_id).first()
+    student_query = db.query(StudentMasters, ClassMaster)\
+        .join(ClassMaster, StudentMasters.class_id == ClassMaster.class_id)\
+        .filter(StudentMasters.student_id == student_id).first()
         
     if not student_query:
         raise HTTPException(status_code=404, detail="Student not found")
