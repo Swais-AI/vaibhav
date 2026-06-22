@@ -120,7 +120,7 @@ export default function ParentDashboard() {
     const load = async () => {
       setIsLoading(true); setError(null); setData(null);
       try {
-        console.log('[SGS] Dashboard: fetching for student_id', studentId);
+        console.log('[SSS] Dashboard: fetching for student_id', studentId);
         setData(await fetchDashboardData(studentId));
       }
       catch { setError('Failed to load dashboard. Please try again.'); }
