@@ -29,8 +29,8 @@ export default function AIRecommendationsPage() {
               { label: "Truck ID", key: "truck_id" },
               { label: "Current Dock", key: "current_dock" },
               { label: "Suggested Dock", key: "suggested_dock" },
-              { label: "Current Time", key: "current_time" },
-              { label: "Suggested Time", key: "suggested_time" },
+              { label: "Current Dock Time", key: "current_dock_time" },
+              { label: "Suggested Dock Time", key: "suggested_dock_time" },
               { label: "Reason", key: "reason" },
               { label: "Time Saved", key: "time_saved" },
             ]}

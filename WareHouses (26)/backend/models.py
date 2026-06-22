@@ -16,7 +16,7 @@ class WHTruckSchedule(Base):
 
 
 class WHAIRecommendations(Base):
-    __tablename__ = "wh_ai_recommendations"
+    __tablename__ = "wh_ai_recommendations_dock"
 
     recommendation_id = Column(String(20), primary_key=True, index=True)
     truck_id = Column(String(20))

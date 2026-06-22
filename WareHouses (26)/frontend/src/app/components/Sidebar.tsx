@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
+
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsOpen((prev) => !prev);
+    };
+
+    window.addEventListener("toggleSidebar", handleToggle);
+
+    return () => {
+      window.removeEventListener("toggleSidebar", handleToggle);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -12,8 +24,8 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-title">
         <div>
-          <h2>Warehouse AI</h2>
-          <p>Dock Scheduler</p>
+          <h2>SWAIS-VANIJYA</h2>
+          <p>SWAIS Demo Warehouse</p>
         </div>
 
         <button
@@ -23,6 +35,8 @@ export default function Sidebar() {
           ✕
         </button>
       </div>
+
+      <div className="sidebar-line"></div>
 
       <nav className="sidebar-menu">
         <Link href="/">🏠 Dashboard</Link>
