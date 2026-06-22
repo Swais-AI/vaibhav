@@ -11,8 +11,10 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-title">
-        <h2>Warehouse AI</h2>
-        <p>Dock Scheduler</p>
+        <div>
+          <h2>Warehouse AI</h2>
+          <p>Dock Scheduler</p>
+        </div>
 
         <button
           className="sidebar-close-btn"

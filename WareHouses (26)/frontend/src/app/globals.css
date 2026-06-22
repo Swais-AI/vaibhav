@@ -15,7 +15,6 @@ a {
   min-height: 100vh;
   background: #f4f7fb;
 }
-
 .sidebar {
   width: 260px;
   background: #111827;
@@ -29,6 +28,12 @@ a {
   box-sizing: border-box;
 }
 
+.sidebar-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .sidebar-title h2 {
   margin: 0;
   font-size: 22px;
@@ -37,6 +42,18 @@ a {
 .sidebar-title p {
   margin-top: 6px;
   color: #9ca3af;
+}
+
+.sidebar-close-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 26px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
 }
 
 .sidebar-menu {
@@ -51,10 +68,36 @@ a {
   padding: 12px;
   border-radius: 8px;
   font-weight: 500;
+  transition: 0.3s;
 }
 
 .sidebar-menu a:hover {
   background: #2563eb;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 260px;
+    height: 100vh;
+  }
+
+  .sidebar-close-btn {
+    display: block;
+  }
+
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .main-content {
@@ -211,14 +254,17 @@ button {
   background: #dcfce7;
   color: #166534;
 }
+
+
+.sidebar-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .sidebar-close-btn {
-  background: transparent;
+  background: none;
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #111827;
-}
-
-.sidebar-close-btn:hover {
-  color: #dc2626;
 }
