@@ -35,10 +35,10 @@ BEGIN
                  'parent_student_map',
                  'quiz_master',
                  'quiz_response',
-                 'student_masters',
+                 'student_master',
                  'student_submission',
                  'subject_master',
-                 'teacher_masterss',
+                 'teacher_masters',
                  'teacher_parent_interaction'
                )
     LOOP
@@ -88,13 +88,13 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- teacher_masterss: email → email_id
+-- teacher_masters: email → email_id
 DO $$ BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
-        WHERE  table_name = 'teacher_masterss' AND column_name = 'email'
+        WHERE  table_name = 'teacher_masters' AND column_name = 'email'
     ) THEN
-        ALTER TABLE teacher_masterss RENAME COLUMN email TO email_id;
+        ALTER TABLE teacher_masters RENAME COLUMN email TO email_id;
     END IF;
 END $$;
 
@@ -118,8 +118,8 @@ END $$;
 
 DO $$ BEGIN
     IF (SELECT data_type FROM information_schema.columns
-        WHERE table_name = 'teacher_masterss' AND column_name = 'teacher_id') = 'integer' THEN
-        ALTER TABLE teacher_masterss ALTER COLUMN teacher_id TYPE bigint;
+        WHERE table_name = 'teacher_masters' AND column_name = 'teacher_id') = 'integer' THEN
+        ALTER TABLE teacher_masters ALTER COLUMN teacher_id TYPE bigint;
     END IF;
 END $$;
 
@@ -139,8 +139,8 @@ END $$;
 
 DO $$ BEGIN
     IF (SELECT data_type FROM information_schema.columns
-        WHERE table_name = 'student_masters' AND column_name = 'student_id') = 'integer' THEN
-        ALTER TABLE student_masters ALTER COLUMN student_id TYPE bigint;
+        WHERE table_name = 'student_master' AND column_name = 'student_id') = 'integer' THEN
+        ALTER TABLE student_master ALTER COLUMN student_id TYPE bigint;
     END IF;
 END $$;
 
@@ -247,11 +247,11 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- student_masters FK columns
+-- student_master FK columns
 DO $$ BEGIN
     IF (SELECT data_type FROM information_schema.columns
-        WHERE table_name = 'student_masters' AND column_name = 'class_id') = 'integer' THEN
-        ALTER TABLE student_masters ALTER COLUMN class_id TYPE bigint;
+        WHERE table_name = 'student_master' AND column_name = 'class_id') = 'integer' THEN
+        ALTER TABLE student_master ALTER COLUMN class_id TYPE bigint;
     END IF;
 END $$;
 
@@ -299,7 +299,7 @@ END $$;
 
 -- support_tickets: student_id promoted to bigint for FK consistency
 -- (RDS keeps this as integer but we promote locally so the FK constraint
---  to sss_student_masters.student_id bigint stays valid on fresh installs)
+--  to sss_student_master.student_id bigint stays valid on fresh installs)
 DO $$ BEGIN
     IF (SELECT data_type FROM information_schema.columns
         WHERE table_name = 'support_tickets' AND column_name = 'student_id') = 'integer' THEN
@@ -363,20 +363,20 @@ ALTER TABLE quiz_response ADD COLUMN IF NOT EXISTS modified_datetime TIMESTAMP;
 ALTER TABLE quiz_response ADD COLUMN IF NOT EXISTS record_status     VARCHAR;
 ALTER TABLE quiz_response ADD COLUMN IF NOT EXISTS version_no        INTEGER;
 
--- ── student_masters ─────────────────────────────────────────────────
+-- ── student_master ─────────────────────────────────────────────────
 -- admission_no exists in local DB but was absent from model
 -- New RDS enrichment fields: student contact + guardian info
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS admission_no      VARCHAR;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS student_phone     VARCHAR;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS student_email     VARCHAR;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS guardian_name     VARCHAR;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS guardian_phone    VARCHAR;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS guardian_email    VARCHAR;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS is_active         BOOLEAN;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS created_datetime  TIMESTAMP;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS modified_datetime TIMESTAMP;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS record_status     VARCHAR;
-ALTER TABLE student_masters ADD COLUMN IF NOT EXISTS version_no        INTEGER;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS admission_no      VARCHAR;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS student_phone     VARCHAR;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS student_email     VARCHAR;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS guardian_name     VARCHAR;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS guardian_phone    VARCHAR;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS guardian_email    VARCHAR;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS is_active         BOOLEAN;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS created_datetime  TIMESTAMP;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS modified_datetime TIMESTAMP;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS record_status     VARCHAR;
+ALTER TABLE student_master ADD COLUMN IF NOT EXISTS version_no        INTEGER;
 
 -- ── student_submission ─────────────────────────────────────────────
 -- submitted_at already exists; RDS also carries created_datetime separately
@@ -393,17 +393,17 @@ ALTER TABLE subject_master ADD COLUMN IF NOT EXISTS modified_datetime TIMESTAMP;
 ALTER TABLE subject_master ADD COLUMN IF NOT EXISTS record_status     VARCHAR;
 ALTER TABLE subject_master ADD COLUMN IF NOT EXISTS version_no        INTEGER;
 
--- ── teacher_masterss ─────────────────────────────────────────────────
+-- ── teacher_masters ─────────────────────────────────────────────────
 -- subject_name, class_id, section_1, section_2, role exist in local DB
 -- but were absent from the prior model; is_active is new from RDS
 -- email_id already added by Phase 2 rename; class_id already bigint in local DB
-ALTER TABLE teacher_masterss ADD COLUMN IF NOT EXISTS subject_name VARCHAR;
-ALTER TABLE teacher_masterss ADD COLUMN IF NOT EXISTS class_id     BIGINT;
-ALTER TABLE teacher_masterss ADD COLUMN IF NOT EXISTS section_1    VARCHAR;
-ALTER TABLE teacher_masterss ADD COLUMN IF NOT EXISTS section_2    VARCHAR;
-ALTER TABLE teacher_masterss ADD COLUMN IF NOT EXISTS role         VARCHAR;
-ALTER TABLE teacher_masterss ADD COLUMN IF NOT EXISTS is_active    BOOLEAN;
-ALTER TABLE teacher_masterss ADD COLUMN IF NOT EXISTS created_at   TIMESTAMP;
+ALTER TABLE teacher_masters ADD COLUMN IF NOT EXISTS subject_name VARCHAR;
+ALTER TABLE teacher_masters ADD COLUMN IF NOT EXISTS class_id     BIGINT;
+ALTER TABLE teacher_masters ADD COLUMN IF NOT EXISTS section_1    VARCHAR;
+ALTER TABLE teacher_masters ADD COLUMN IF NOT EXISTS section_2    VARCHAR;
+ALTER TABLE teacher_masters ADD COLUMN IF NOT EXISTS role         VARCHAR;
+ALTER TABLE teacher_masters ADD COLUMN IF NOT EXISTS is_active    BOOLEAN;
+ALTER TABLE teacher_masters ADD COLUMN IF NOT EXISTS created_at   TIMESTAMP;
 
 -- ── support_tickets ────────────────────────────────────────────────
 -- recipient_name backfill kept here for completeness (also done in main.py startup)
@@ -423,7 +423,7 @@ ALTER TABLE subject_master
 
 ALTER TABLE subject_master
     ADD CONSTRAINT subject_master_teacher_id_fkey
-    FOREIGN KEY (teacher_id) REFERENCES teacher_masterss(teacher_id);
+    FOREIGN KEY (teacher_id) REFERENCES teacher_masters(teacher_id);
 
 ALTER TABLE chapter_master
     ADD CONSTRAINT chapter_master_subject_id_fkey
@@ -435,10 +435,10 @@ ALTER TABLE assignment_master
 
 ALTER TABLE assignment_master
     ADD CONSTRAINT assignment_master_assigned_by_fkey
-    FOREIGN KEY (assigned_by) REFERENCES teacher_masterss(teacher_id);
+    FOREIGN KEY (assigned_by) REFERENCES teacher_masters(teacher_id);
 
-ALTER TABLE student_masters
-    ADD CONSTRAINT student_masters_class_id_fkey
+ALTER TABLE student_master
+    ADD CONSTRAINT student_master_class_id_fkey
     FOREIGN KEY (class_id) REFERENCES class_master(class_id);
 
 ALTER TABLE student_submission
@@ -447,7 +447,7 @@ ALTER TABLE student_submission
 
 ALTER TABLE student_submission
     ADD CONSTRAINT student_submission_student_id_fkey
-    FOREIGN KEY (student_id) REFERENCES student_masters(student_id);
+    FOREIGN KEY (student_id) REFERENCES student_master(student_id);
 
 ALTER TABLE quiz_master
     ADD CONSTRAINT quiz_master_chapter_id_fkey
@@ -459,19 +459,19 @@ ALTER TABLE quiz_response
 
 ALTER TABLE quiz_response
     ADD CONSTRAINT quiz_response_student_id_fkey
-    FOREIGN KEY (student_id) REFERENCES student_masters(student_id);
+    FOREIGN KEY (student_id) REFERENCES student_master(student_id);
 
 ALTER TABLE notice_board
     ADD CONSTRAINT notice_board_posted_by_fkey
-    FOREIGN KEY (posted_by) REFERENCES teacher_masterss(teacher_id);
+    FOREIGN KEY (posted_by) REFERENCES teacher_masters(teacher_id);
 
 ALTER TABLE teacher_parent_interaction
     ADD CONSTRAINT teacher_parent_interaction_teacher_id_fkey
-    FOREIGN KEY (teacher_id) REFERENCES teacher_masterss(teacher_id);
+    FOREIGN KEY (teacher_id) REFERENCES teacher_masters(teacher_id);
 
 ALTER TABLE teacher_parent_interaction
     ADD CONSTRAINT teacher_parent_interaction_student_id_fkey
-    FOREIGN KEY (student_id) REFERENCES student_masters(student_id);
+    FOREIGN KEY (student_id) REFERENCES student_master(student_id);
 
 ALTER TABLE teacher_parent_interaction
     ADD CONSTRAINT teacher_parent_interaction_class_id_fkey
@@ -483,7 +483,7 @@ ALTER TABLE parent_student_map
 
 ALTER TABLE parent_student_map
     ADD CONSTRAINT parent_student_map_student_id_fkey
-    FOREIGN KEY (student_id) REFERENCES student_masters(student_id);
+    FOREIGN KEY (student_id) REFERENCES student_master(student_id);
 
 ALTER TABLE support_tickets
     ADD CONSTRAINT support_tickets_parent_id_fkey
@@ -491,6 +491,6 @@ ALTER TABLE support_tickets
 
 ALTER TABLE support_tickets
     ADD CONSTRAINT support_tickets_student_id_fkey
-    FOREIGN KEY (student_id) REFERENCES student_masters(student_id);
+    FOREIGN KEY (student_id) REFERENCES student_master(student_id);
 
 COMMIT;

@@ -27,8 +27,8 @@ Option B — import and call from main.py so the check runs automatically:
 TABLES CHECKED
 ──────────────
 Required tables (app will NOT start if any are absent):
-    class_master, student_masters, parent_master, parent_student_map,
-    teacher_masters, subject_master, chapter_master, assignment_master,
+    class_master, student_master, parent_master, parent_student_map,
+    teacher_master, subject_master, chapter_master, assignment_master,
     student_submission, quiz_master, quiz_response, notice_board,
     support_tickets, ticket_messages
 
@@ -55,12 +55,12 @@ log = logging.getLogger(__name__)
 
 # The app will refuse to start if any of these are missing.
 REQUIRED_TABLES = [
-    "users_masters",        # FK root for teacher/staff — must exist before seeding
+    "users_master",        # FK root for teacher/staff — must exist before seeding
     "class_master",
-    "student_masters",
+    "student_master",
     "parent_master",
     "parent_student_map",
-    "teacher_masters",
+    "teacher_master",
     "subject_master",
     "chapter_master",
     "assignment_master",

@@ -23,7 +23,7 @@ import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database import get_db
-from models import StudentMasters, ParentMaster, ParentStudentMap, ClassMaster
+from models import StudentMaster, ParentMaster, ParentStudentMap, ClassMaster
 from typing import List, Any
 
 logger = logging.getLogger(__name__)
@@ -38,11 +38,11 @@ def get_seeded_students(db: Session = Depends(get_db)) -> List[Any]:
     Filtered by full_name LIKE 'TEST_%' — matches mock_data.py naming convention.
     """
     rows = (
-        db.query(StudentMasters, ParentStudentMap, ClassMaster)
-        .join(ParentStudentMap, ParentStudentMap.student_id == StudentMasters.student_id)
-        .join(ClassMaster, StudentMasters.class_id == ClassMaster.class_id)
-        .filter(StudentMasters.full_name.like("TEST_%"))
-        .order_by(StudentMasters.student_id)
+        db.query(StudentMaster, ParentStudentMap, ClassMaster)
+        .join(ParentStudentMap, ParentStudentMap.student_id == StudentMaster.student_id)
+        .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)
+        .filter(StudentMaster.full_name.like("TEST_%"))
+        .order_by(StudentMaster.student_id)
         .all()
     )
     result = [

@@ -1,6 +1,6 @@
 -- ============================================================
 -- v003_teacher_phone_bigint.sql
--- Convert teacher_masters.phone  VARCHAR → BIGINT
+-- Convert teacher_master.phone  VARCHAR → BIGINT
 -- ============================================================
 -- WHY THIS IS NEEDED
 -- ─────────────────
@@ -50,7 +50,7 @@ DO $$
 DECLARE
     tbl TEXT;
 BEGIN
-    FOREACH tbl IN ARRAY ARRAY['teacher_masters', 'sss_teacher_masters']
+    FOREACH tbl IN ARRAY ARRAY['teacher_master', 'sss_teacher_master']
     LOOP
         -- Skip if the table does not exist in this database
         IF NOT EXISTS (

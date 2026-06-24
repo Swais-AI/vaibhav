@@ -21,7 +21,7 @@ from schemas import (
     # DISABLED: AnalyticsResponse — analytics module removed from frontend.
 )
 from models import (
-    ParentStudentMap, StudentMasters, ClassMaster, AssignmentMaster, SubjectMaster,
+    ParentStudentMap, StudentMaster, ClassMaster, AssignmentMaster, SubjectMaster,
     ChapterMaster, StudentSubmission, QuizMaster, QuizResponse,
     UsersMaster, NoticeBoard,
     SupportTicket, TicketMessage,
@@ -30,8 +30,8 @@ from models import (
     # DISABLED: LeaveRequest     — leave-request endpoints commented out below.
     # DISABLED: TeacherParentInteractionV2 — table absent on SGS RDS; remarks
     #           now come from TicketMessage (sender_type='TEACHER') instead.
-    # NOTE: TeacherMasters removed — assigned_by / posted_by now FK to
-    #       users_masters.user_id; all teacher-name JOINs use UsersMaster.
+    # NOTE: TeacherMaster removed — assigned_by / posted_by now FK to
+    #       users_master.user_id; all teacher-name JOINs use UsersMaster.
 )
 
 router = APIRouter()
@@ -72,7 +72,7 @@ def get_dashboard(student_id: int, db: Session = Depends(get_db)):
 # def get_communication_timeline(student_id: int, db: Session = Depends(get_db)):
 #     try:
 #         timeline = []
-#         calls = db.query(CallRequest, TeacherMasters.full_name).outerjoin(...).all()
+#         calls = db.query(CallRequest, TeacherMaster.full_name).outerjoin(...).all()
 #         ... (full implementation preserved in git history)
 #         return [TimelineItemSchema(**item) for item in timeline]
 #     except Exception as e:
@@ -81,9 +81,9 @@ def get_dashboard(student_id: int, db: Session = Depends(get_db)):
 
 @router.get("/parents/{parent_id}/children", response_model=List[MappedChildSchema])
 def get_parent_children(parent_id: int, db: Session = Depends(get_db)):
-    children_query = db.query(StudentMasters, ClassMaster)\
-        .join(ParentStudentMap, ParentStudentMap.student_id == StudentMasters.student_id)\
-        .join(ClassMaster, StudentMasters.class_id == ClassMaster.class_id)\
+    children_query = db.query(StudentMaster, ClassMaster)\
+        .join(ParentStudentMap, ParentStudentMap.student_id == StudentMaster.student_id)\
+        .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
         .filter(ParentStudentMap.parent_id == parent_id).all()
 
     result = []
@@ -99,7 +99,7 @@ def get_parent_children(parent_id: int, db: Session = Depends(get_db)):
 
 @router.get("/assignments/history/{student_id}", response_model=List[AssignmentSchema])
 def get_assignments_history(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
+    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
     if not student:
         logger.warning("[assignments/history] student_id=%s not found → returning []", student_id)
         return []
@@ -146,7 +146,7 @@ def get_assignments_history(student_id: int, db: Session = Depends(get_db)):
 
 @router.get("/assignments/analytics/{student_id}", response_model=AssignmentAnalyticsResponse)
 def get_assignment_analytics(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
+    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
     if not student:
         logger.warning("[assignments/analytics] student_id=%s not found → returning zeroes", student_id)
         return AssignmentAnalyticsResponse(total=0, submitted=0, pending=0, overdue=0, graded=0, completion_pct=0.0)
@@ -215,7 +215,7 @@ def submit_assignment(request: AssignmentSubmitRequest, db: Session = Depends(ge
 
 @router.get("/quiz/history/{student_id}", response_model=List[QuizDetailResponse])
 def get_quiz_history(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
+    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
     if not student:
         logger.warning("[quiz/history] student_id=%s not found → returning []", student_id)
         return []
@@ -269,7 +269,7 @@ def get_quiz_history(student_id: int, db: Session = Depends(get_db)):
 @router.get("/remarks/history/{student_id}", response_model=List[RemarkSchema])
 def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
     # Source 1: teacher_remarks stored on submitted assignments (graded work).
-    # JOIN uses UsersMaster (assigned_by → users_masters.user_id on production).
+    # JOIN uses UsersMaster (assigned_by → users_master.user_id on production).
     submissions_remarks = db.query(StudentSubmission, UsersMaster.full_name, SubjectMaster.subject_name)\
         .join(AssignmentMaster, StudentSubmission.assignment_id == AssignmentMaster.assignment_id)\
         .outerjoin(UsersMaster, AssignmentMaster.assigned_by == UsersMaster.user_id)\
@@ -326,7 +326,7 @@ def get_remarks_history(student_id: int, db: Session = Depends(get_db)):
 @router.get("/notices/history/{student_id}", response_model=List[NoticeSchema])
 def get_notices_history(student_id: int, db: Session = Depends(get_db)):
 
-    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
+    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
     if not student:
         logger.warning("[notices/history] student_id=%s not found → returning []", student_id)
         return []
@@ -455,7 +455,7 @@ def get_notifications(student_id: int, db: Session = Depends(get_db)):
         ))
 
     # 2. Unread Teacher remarks (new ticket messages of type TEACHER not yet read)
-    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
+    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
 
     # 3. Recent class notices (is_read tracked client-side via localStorage)
     if student:

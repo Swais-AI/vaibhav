@@ -8,7 +8,7 @@ HOW IT IDENTIFIES SEEDED RECORDS
 ──────────────────────────────────
 Every record inserted by mock_data.py carries at least one of these markers:
 
-  full_name    LIKE 'TEST_%'   → ClassMaster, StudentMasters,
+  full_name    LIKE 'TEST_%'   → ClassMaster, StudentMaster,
                                    ParentMaster, TeacherMaster
   email        LIKE '%_seed@%' → ParentMaster, TeacherMaster  (physical col: email_id)
   notice_title LIKE 'SEED_%'   → NoticeBoard
@@ -26,16 +26,16 @@ and independent of the seed script's runtime variables.
 DELETION ORDER (FK dependency chain — children before parents)
 ───────────────────────────────────────────────────────────────
   1.  TicketMessage    (FK → SupportTicket)
-  2.  SupportTicket    (FK → ParentMaster, StudentMasters)
-  3.  StudentSubmission(FK → AssignmentMaster, StudentMasters)
-  4.  QuizResponse     (FK → QuizMaster, StudentMasters)
+  2.  SupportTicket    (FK → ParentMaster, StudentMaster)
+  3.  StudentSubmission(FK → AssignmentMaster, StudentMaster)
+  4.  QuizResponse     (FK → QuizMaster, StudentMaster)
   5.  NoticeBoard      (FK → UsersMaster)
   6.  AssignmentMaster (FK → ChapterMaster, UsersMaster)
   7.  QuizMaster       (FK → ChapterMaster)
-  8.  ParentStudentMap (FK → ParentMaster, StudentMasters)
+  8.  ParentStudentMap (FK → ParentMaster, StudentMaster)
   9.  ChapterMaster    (FK → SubjectMaster)
   10. SubjectMaster    (FK → ClassMaster, UsersMaster)
-  11. StudentMasters    (FK → ClassMaster)
+  11. StudentMaster    (FK → ClassMaster)
   12. ParentMaster     (no FK dependencies)
   13. TeacherMaster    (no FK dependencies — standalone after v004)
   14. ClassMaster      (FK → UsersMaster via class_teacher_id)
@@ -70,7 +70,7 @@ from database import SessionLocal
 from models import (
     UsersMaster,
     ClassMaster,
-    StudentMasters,
+    StudentMaster,
     ParentMaster,
     ParentStudentMap,
     TeacherMaster,
@@ -127,8 +127,8 @@ def _collect_seed_ids(db: Session) -> dict:
         ParentMaster.full_name.like(f"{SEED_NAME_PREFIX}%")
     ).all()
 
-    seed_students = db.query(StudentMasters).filter(
-        StudentMasters.full_name.like(f"{SEED_NAME_PREFIX}%")
+    seed_students = db.query(StudentMaster).filter(
+        StudentMaster.full_name.like(f"{SEED_NAME_PREFIX}%")
     ).all()
 
     seed_subjects = db.query(SubjectMaster).filter(
@@ -220,7 +220,7 @@ def _collect_seed_ids(db: Session) -> dict:
         "ClassMaster":               seed_classes,
         "TeacherMaster":             seed_teachers,
         "ParentMaster":              seed_parents,
-        "StudentMasters":             seed_students,
+        "StudentMaster":             seed_students,
         # Mid-level tables
         "SubjectMaster":             seed_subjects,
         "ChapterMaster":             seed_chapters,
@@ -258,7 +258,7 @@ def preview_seed_data(db: Session) -> dict:
 
     # Deletion order — children first so FK constraints are respected.
     # UsersMaster is the FK root (subject/class/assignment/notice all reference
-    # users_masters.user_id), so it must be deleted after those tables are clear.
+    # users_master.user_id), so it must be deleted after those tables are clear.
     ordered_keys = [
         "TicketMessage",
         "SupportTicket",
@@ -270,7 +270,7 @@ def preview_seed_data(db: Session) -> dict:
         "ParentStudentMap",
         "ChapterMaster",
         "SubjectMaster",
-        "StudentMasters",
+        "StudentMaster",
         "ParentMaster",
         "TeacherMaster",
         "ClassMaster",
@@ -415,7 +415,7 @@ def cleanup_seed_data(dry_run: bool = True) -> None:
         deleted += _delete_batch(seed["SubjectMaster"],              "SubjectMaster")
 
         # Step 5 — root records (no FK dependencies remain by this point)
-        deleted += _delete_batch(seed["StudentMasters"],  "StudentMasters")
+        deleted += _delete_batch(seed["StudentMaster"],  "StudentMaster")
         deleted += _delete_batch(seed["ParentMaster"],   "ParentMaster")
         deleted += _delete_batch(seed["TeacherMaster"],  "TeacherMaster")
         deleted += _delete_batch(seed["ClassMaster"],    "ClassMaster")

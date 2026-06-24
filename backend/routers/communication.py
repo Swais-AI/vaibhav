@@ -19,9 +19,9 @@ import uuid
 
 from models import (
     SupportTicket, TicketMessage,
-    StudentMasters, UsersMaster, SubjectMaster, ParentMaster,
+    StudentMaster, UsersMaster, SubjectMaster, ParentMaster,
     # TeacherMaster removed: SubjectMaster.teacher_id now FKs to
-    # users_masters.user_id, so the teacher-lookup JOIN uses UsersMaster.
+    # users_master.user_id, so the teacher-lookup JOIN uses UsersMaster.
 )
 from schemas import (
     TeacherOptionSchema,
@@ -37,11 +37,11 @@ router = APIRouter(prefix="/comm", tags=["Communication"])
 
 @router.get("/teachers/{student_id}", response_model=List[TeacherOptionSchema])
 def get_available_recipients(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentMasters).filter(StudentMasters.student_id == student_id).first()
+    student = db.query(StudentMaster).filter(StudentMaster.student_id == student_id).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    # SubjectMaster.teacher_id → users_masters.user_id (production FK).
+    # SubjectMaster.teacher_id → users_master.user_id (production FK).
     # Join UsersMaster on user_id to resolve the teacher's display name.
     rows = (
         db.query(UsersMaster, SubjectMaster.subject_name)

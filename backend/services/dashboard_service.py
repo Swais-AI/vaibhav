@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from fastapi import HTTPException
 from models import (
-    StudentMasters, ClassMaster, AssignmentMaster, StudentSubmission,
+    StudentMaster, ClassMaster, AssignmentMaster, StudentSubmission,
     QuizMaster, QuizResponse, NoticeBoard,
     SubjectMaster, ChapterMaster, UsersMaster,
     SupportTicket, TicketMessage,
@@ -12,7 +12,7 @@ from models import (
     # TeacherParentInteractionV2 — REMOVED: table absent on SGS RDS.
     #   Remarks now come from TicketMessage (sender_type='TEACHER') via SupportTicket.
     # TeacherMaster           — REMOVED from active imports: posted_by / assigned_by
-    #   now FK to users_masters.user_id; all name lookups use UsersMaster.
+    #   now FK to users_master.user_id; all name lookups use UsersMaster.
 )
 from schemas import (
     DashboardResponse, StudentSchema, AssignmentSchema, QuizSchema,
@@ -30,9 +30,9 @@ def get_dashboard_data(db: Session, student_id: int):
     now = datetime.utcnow()
 
     # 1. Student Info
-    student_query = db.query(StudentMasters, ClassMaster)\
-        .join(ClassMaster, StudentMasters.class_id == ClassMaster.class_id)\
-        .filter(StudentMasters.student_id == student_id).first()
+    student_query = db.query(StudentMaster, ClassMaster)\
+        .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
+        .filter(StudentMaster.student_id == student_id).first()
         
     if not student_query:
         raise HTTPException(status_code=404, detail="Student not found")
@@ -174,7 +174,7 @@ def get_dashboard_data(db: Session, student_id: int):
     all_remarks.sort(key=lambda x: x["date_obj"], reverse=True)
     remark_list = [RemarkSchema(remark_id=i, teacher_name=r["teacher_name"], comment=r["comment"], date=r["date"], ticket_id=r.get("ticket_id"), is_read=r.get("is_read", True)) for i, r in enumerate(all_remarks, start=1)]
 
-    # 5. Notices — posted_by FKs to users_masters.user_id on production.
+    # 5. Notices — posted_by FKs to users_master.user_id on production.
     notices_query = db.query(NoticeBoard, UsersMaster.full_name)\
         .outerjoin(UsersMaster, NoticeBoard.posted_by == UsersMaster.user_id)\
         .filter(NoticeBoard.notice_text.isnot(None))\
