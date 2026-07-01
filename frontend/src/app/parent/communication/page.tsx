@@ -577,7 +577,7 @@ function CommunicationCenterInner() {
     if (!studentId || !parentId) return;
     setIsLoading(true);
     try {
-      console.log('[SGS] CommunicationCenter: loading conversations for student', studentId, 'parent', parentId);
+      console.log('[SSS] CommunicationCenter: loading conversations for student', studentId, 'parent', parentId);
       const data = await fetchConversations(studentId, parentId);
       setConversations(data);
     } finally {
