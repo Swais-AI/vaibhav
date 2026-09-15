@@ -1296,6 +1296,19 @@ export default function AssignmentsPage() {
       setAiLoading(false);
     }
   };
+
+  // Automatically generate the AI reminder whenever a parent opens
+  // an assignment in the Overview drawer. The parent no longer needs
+  // to click the AI Reminder button manually.
+  useEffect(() => {
+    if (!drawer) {
+      setAiAlert(null);
+      return;
+    }
+
+    handleDueDateAlert(drawer);
+  }, [drawer?.assignment_id]);
+
   /*
    * ---------------------------------------------------------
    * METRIC CARDS
@@ -2786,29 +2799,6 @@ export default function AssignmentsPage() {
                   </p>
                 </div>
               )}
-
-              <button
-                onClick={() =>
-                  handleDueDateAlert(
-                    drawer
-                  )
-                }
-                disabled={aiLoading}
-                className="px-4 py-2.5 rounded-xl font-semibold text-sm border flex items-center gap-1.5"
-                style={{
-                  color:
-                    '#EA580C',
-                  borderColor:
-                    '#FED7AA',
-                  background:
-                    '#FFF7ED',
-                }}
-              >
-                🤖{' '}
-                {aiLoading
-                  ? 'Generating...'
-                  : 'AI Reminder'}
-              </button>
 
               <button
                 onClick={() => {
