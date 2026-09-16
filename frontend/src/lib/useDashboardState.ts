@@ -1,15 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchParentByEmail, fetchParentChildren } from '@/lib/api';
 
-/**
- * Persistent dashboard state.
- *
- * IDs start at 0, meaning "not loaded yet".
- * The dashboard first tries to resolve the authenticated parent
- * dynamically from the existing SSS login session.
- *
- * No parent/student IDs are hard-coded.
- */
 export function useDashboardState() {
   const [mounted, setMounted] = useState(false);
   const [studentId, setStudentId] = useState<number>(0);
@@ -26,14 +17,11 @@ export function useDashboardState() {
         const savedLang = localStorage.getItem('sss_language');
 
         const sid = savedStudent ? Number(savedStudent) : 0;
-        const pid = savedParent ? Number(savedParent) : 0;
 
-        if (savedLang) setLanguage(savedLang);
+        if (savedLang) {
+          setLanguage(savedLang);
+        }
 
-        /*
-         * Try to obtain the authenticated user's email
-         * from the existing SSS login session.
-         */
         const sessionRaw =
           sessionStorage.getItem('sssUserSession') ||
           localStorage.getItem('sssUserSession');
@@ -46,7 +34,6 @@ export function useDashboardState() {
           if (!cancelled) {
             setMounted(true);
           }
-
           return;
         }
 
@@ -60,7 +47,6 @@ export function useDashboardState() {
           if (!cancelled) {
             setMounted(true);
           }
-
           return;
         }
 
@@ -77,21 +63,14 @@ export function useDashboardState() {
           if (!cancelled) {
             setMounted(true);
           }
-
           return;
         }
 
         console.log('[SSS] Authenticated email:', email);
 
-        /*
-         * Resolve the parent dynamically using the
-         * authenticated user's email.
-         */
         const parent = await fetchParentByEmail(email);
 
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         const resolvedParentId = Number(parent?.parent_id || 0);
 
@@ -106,8 +85,10 @@ export function useDashboardState() {
           'sss_parent_id',
           resolvedParentId.toString()
         );
-	setStudentId(0);
-	localStorage.removeItem('sss_student_id');
+
+        // Clear any previous user's student context.
+        setStudentId(0);
+        localStorage.removeItem('sss_student_id');
 
         console.log(
           '[SSS] Parent resolved:',
@@ -115,22 +96,12 @@ export function useDashboardState() {
           parent?.full_name
         );
 
-        /*
-         * Get the children belonging to this parent.
-         */
-        const children = await fetchParentChildren(
-          resolvedParentId
-        );
+        const children =
+          await fetchParentChildren(resolvedParentId);
 
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         if (Array.isArray(children) && children.length > 0) {
-          /*
-           * Preserve an existing valid student selection.
-           * Otherwise select the first mapped child dynamically.
-           */
           const existingChild = children.find(
             (child: any) =>
               Number(child?.student_id) === sid
@@ -156,13 +127,18 @@ export function useDashboardState() {
             );
           }
         } else {
-  console.warn('[SSS] No children found for parent:', resolvedParentId);
+          console.warn(
+            '[SSS] No children found for parent:',
+            resolvedParentId
+          );
 
-  setStudentId(0);
-  localStorage.removeItem('sss_student_id');
+          setStudentId(0);
+          localStorage.removeItem('sss_student_id');
 
-  console.log('[SSS] Cleared previous student context.');
-}
+          console.log(
+            '[SSS] Cleared previous student context.'
+          );
+        }
 
         setMounted(true);
       } catch (error) {
