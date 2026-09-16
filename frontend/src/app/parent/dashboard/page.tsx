@@ -370,7 +370,7 @@ export default function ParentDashboard() {
 
       try {
         console.log(
-          '[SGS] Dashboard: fetching for student_id',
+          '[SSS] Dashboard: fetching for student_id',
           studentId
         );
 
@@ -378,14 +378,14 @@ export default function ParentDashboard() {
           await fetchDashboardData(studentId);
 
         console.log(
-          '[SGS] Dashboard API response:',
+          '[SSS] Dashboard API response:',
           dashboardData
         );
 
         setData(dashboardData);
       } catch (err) {
         console.error(
-          '[SGS] Dashboard loading error:',
+          '[SSS] Dashboard loading error:',
           err
         );
 
@@ -637,6 +637,7 @@ export default function ParentDashboard() {
         studentId={studentId}
         setStudentId={setStudentId}
         parentId={parentId}
+        parentName={parentName}
         language={language}
         setLanguage={setLanguage}
         isLoading={isLoading}

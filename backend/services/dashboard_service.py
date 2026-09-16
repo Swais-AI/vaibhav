@@ -5,6 +5,7 @@ from models import (
     StudentMaster, ClassMaster, AssignmentMaster, StudentSubmission,
     QuizMaster, QuizResponse, NoticeBoard,
     SubjectMaster, ChapterMaster, UsersMaster,
+    ParentStudentMap, ParentMaster,
     SupportTicket, TicketMessage,
     # AttendanceMaster        — DISABLED: attendance module removed from parent portal.
     # CallRequest             — DISABLED: call-request routes disabled; not queried here.
@@ -30,22 +31,57 @@ def get_dashboard_data(db: Session, student_id: int):
     now = datetime.utcnow()
 
     # 1. Student Info
-    student_query = db.query(StudentMaster, ClassMaster)\
-        .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
-        .filter(StudentMaster.student_id == student_id).first()
-        
+    student_query = (
+        db.query(StudentMaster, ClassMaster)
+        .outerjoin(
+            ClassMaster,
+            StudentMaster.class_id == ClassMaster.class_id
+        )
+        .filter(StudentMaster.student_id == student_id)
+        .first()
+    )
+
     if not student_query:
         raise HTTPException(status_code=404, detail="Student not found")
-        
+
     student, class_info = student_query
+    # 1A. Parent Info
+    parent_mapping = (
+        db.query(ParentStudentMap)
+        .filter(
+            ParentStudentMap.student_id == student_id
+        )
+        .first()
+    )
+
+    parent_data = None
+
+    if parent_mapping and parent_mapping.parent_id:
+        parent = (
+            db.query(ParentMaster)
+            .filter(
+                ParentMaster.parent_id == parent_mapping.parent_id
+            )
+            .first()
+        )
+
+        if parent:
+            parent_data = {
+                "parent_id": parent.parent_id,
+                "full_name": parent.full_name or "",
+            }
     
     student_data = StudentSchema(
-        student_id=student.student_id,
-        full_name=student.full_name,
-        class_name=class_info.class_name,
-        section=student.section,
-        roll_no=student.roll_no or ""
-    )
+    student_id=student.student_id,
+    full_name=student.full_name,
+    class_name=(
+        class_info.class_name
+        if class_info
+        else (getattr(student, "class_name", "") or "")
+    ),
+    section=student.section,
+    roll_no=student.roll_no or ""
+)
 
     # 2. Assignments
     assignments_query = db.query(
@@ -175,30 +211,53 @@ def get_dashboard_data(db: Session, student_id: int):
     remark_list = [RemarkSchema(remark_id=i, teacher_name=r["teacher_name"], comment=r["comment"], date=r["date"], ticket_id=r.get("ticket_id"), is_read=r.get("is_read", True)) for i, r in enumerate(all_remarks, start=1)]
 
     # 5. Notices — posted_by FKs to users_master.user_id on production.
-    notices_query = db.query(NoticeBoard, UsersMaster.full_name)\
-        .outerjoin(UsersMaster, NoticeBoard.posted_by == UsersMaster.user_id)\
-        .filter(NoticeBoard.notice_text.isnot(None))\
-        .filter(NoticeBoard.notice_text != '')\
+    student_class_name = (
+        class_info.class_name
+        if class_info
+        else (getattr(student, "class_name", "") or "")
+    )
+
+    notices_query = (
+        db.query(NoticeBoard, UsersMaster.full_name)
+        .outerjoin(
+            UsersMaster,
+            NoticeBoard.posted_by == UsersMaster.user_id
+        )
+        .filter(NoticeBoard.notice_text.isnot(None))
+        .filter(NoticeBoard.notice_text != "")
         .filter(
             or_(
-                NoticeBoard.applicable_class == class_info.class_name,
-                NoticeBoard.applicable_class == 'All',
+                NoticeBoard.applicable_class == student_class_name,
+                NoticeBoard.applicable_class == "All",
                 NoticeBoard.applicable_class.is_(None),
             )
-        )\
-        .order_by(NoticeBoard.created_at.desc()).all()
-        
+        )
+        .order_by(NoticeBoard.created_at.desc())
+        .all()
+    )
     notice_list = []
+
     for notice, teacher_name in notices_query:
-        notice_date_str = notice.notice_date.strftime("%d %b %Y") if notice.notice_date else (notice.created_at.strftime("%d %b %Y") if notice.created_at else "")
-        notice_list.append(NoticeSchema(
-            notice_id=notice.notice_id,
-            notice_title=notice.notice_title or "Notice",
-            notice_text=notice.notice_text.strip(),
-            notice_date=notice_date_str,
-            applicable_class=notice.applicable_class or "All",
-            posted_by_name=teacher_name or "Admin"
-        ))
+        notice_date_str = (
+            notice.notice_date.strftime("%d %b %Y")
+            if notice.notice_date
+            else (
+                notice.created_at.strftime("%d %b %Y")
+                if notice.created_at
+                else ""
+            )
+        )
+
+        notice_list.append(
+            NoticeSchema(
+                notice_id=notice.notice_id,
+                notice_title=notice.notice_title or "",
+                notice_text=notice.notice_text or "",
+                notice_date=notice_date_str,
+                applicable_class=notice.applicable_class or "All",
+                posted_by_name=teacher_name or "School",
+            )
+        )
 
     # 6. Attendance — DISABLED ─────────────────────────────────────────────────
     # AttendanceMaster DB dependency removed. The attendance module has been
@@ -292,6 +351,7 @@ def get_dashboard_data(db: Session, student_id: int):
     # Rule 6: High completion + good quiz avg - praise
     if assignment_completion_pct >= 80 and avg_score >= 75 and len(smart_recommendations) < 3:
         smart_recommendations.append(SmartRecommendationSchema(
+
             type="praise",
             message="Excellent academic performance!",
             action_text=f"{round(assignment_completion_pct)}% assignments submitted and {round(avg_score, 1)}% quiz average. Keep it up!",
@@ -368,6 +428,7 @@ def get_dashboard_data(db: Session, student_id: int):
 
     return DashboardResponse(
         student=student_data,
+	parent=parent_data,
         assignments=assignment_list[:2],
         quiz=quiz_list[:2],
         remarks=remark_list[:2],

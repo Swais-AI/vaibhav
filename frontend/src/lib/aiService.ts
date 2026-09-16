@@ -3,7 +3,7 @@ import axios from "axios";
 // 🚀 FIX 3: Environment Variable Support
 // This prevents "Mixed Content" errors when deploying to Vercel/Netlify.
 // It falls back to your EC2 IP for local testing if the env var isn't set yet.
-const AI_BASE_URL = process.env.NEXT_PUBLIC_AI_BASE_URL || "http://18.61.240.248:7007/api/parent";
+const AI_BASE_URL = process.env.NEXT_PUBLIC_AI_BASE_URL || "/ai/parent";
 
 const DEFAULT_EMAIL = "parent_user@sss.edu"; // Replace with dynamic logged-in user email when ready
 const DEFAULT_CLIENT = "SSS";

@@ -608,3 +608,10 @@ export const sendConversationMessage = async (
 //
 //   return response.data;
 // };
+export const fetchParentByEmail = async (email: string) => {
+  const response = await api.get('/parents/by-email', {
+    params: { email },
+  });
+
+  return response.data;
+};

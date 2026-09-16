@@ -268,6 +268,7 @@ class SubjectPerformanceData(BaseModel):
 
 class DashboardResponse(BaseModel):
     student: StudentSchema
+    parent: Optional[dict] = None
     assignments: List[AssignmentSchema] = []
     quiz: List[QuizSchema] = []
     remarks: List[RemarkSchema] = []

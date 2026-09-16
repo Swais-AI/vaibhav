@@ -47,7 +47,7 @@ from schemas import (
     # DISABLED: AnalyticsResponse — analytics module removed from frontend.
 )
 from models import (
-    ParentStudentMap, StudentMaster, ClassMaster, AssignmentMaster, SubjectMaster,
+    ParentMaster, ParentStudentMap, StudentMaster, ClassMaster, AssignmentMaster, SubjectMaster,
     ChapterMaster, StudentSubmission, QuizMaster, QuizResponse,
     UsersMaster, NoticeBoard,
     SupportTicket, TicketMessage,
@@ -105,22 +105,70 @@ def get_dashboard(student_id: int, db: Session = Depends(get_db)):
 #         raise HTTPException(status_code=500, detail=str(e))
 # ──────────────────────────────────────────────────────────────────────────
 
+@router.get("/parents/by-email")
+def get_parent_by_email(
+    email: str,
+    db: Session = Depends(get_db)
+):
+    parent = (
+        db.query(ParentMaster)
+        .filter(ParentMaster.email == email)
+        .first()
+    )
+
+    if not parent:
+        raise HTTPException(
+            status_code=404,
+            detail="Parent not found"
+        )
+
+    return {
+        "parent_id": parent.parent_id,
+        "full_name": parent.full_name or "",
+        "email": parent.email or "",
+    }
+
 @router.get("/parents/{parent_id}/children", response_model=List[MappedChildSchema])
 def get_parent_children(parent_id: int, db: Session = Depends(get_db)):
-    children_query = db.query(StudentMaster, ClassMaster)\
-        .join(ParentStudentMap, ParentStudentMap.student_id == StudentMaster.student_id)\
-        .join(ClassMaster, StudentMaster.class_id == ClassMaster.class_id)\
-        .filter(ParentStudentMap.parent_id == parent_id).all()
+    children_query = (
+        db.query(StudentMaster, ClassMaster)
+        .join(
+            ParentStudentMap,
+            ParentStudentMap.student_id == StudentMaster.student_id
+        )
+        .outerjoin(
+            ClassMaster,
+            StudentMaster.class_id == ClassMaster.class_id
+        )
+        .filter(ParentStudentMap.parent_id == parent_id)
+        .all()
+    )
 
     result = []
+
     for student, class_info in children_query:
-        result.append(MappedChildSchema(
-            student_id=student.student_id,
-            full_name=student.full_name,
-            class_name=class_info.class_name,
-            section=student.section
-        ))
-    logger.info("[parents/children] parent_id=%s → %d children found", parent_id, len(result))
+        class_name = ""
+
+        if class_info:
+            class_name = class_info.class_name or ""
+        else:
+            class_name = getattr(student, "class_name", "") or ""
+
+        result.append(
+            MappedChildSchema(
+                student_id=student.student_id,
+                full_name=student.full_name,
+                class_name=class_name,
+                section=student.section or ""
+            )
+        )
+
+    logger.info(
+        "[parents/children] parent_id=%s → %d children found",
+        parent_id,
+        len(result)
+    )
+
     return result
 
 @router.get(
