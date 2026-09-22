@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -58,7 +57,7 @@ function getReadIds(
 
   try {
     const raw = localStorage.getItem(
-      `sgs_read_${kind}_${studentId}`
+      `sss_read_${kind}_${studentId}`
     );
 
     return raw
@@ -80,7 +79,7 @@ function saveReadIds(
 
   try {
     localStorage.setItem(
-      `sgs_read_${kind}_${studentId}`,
+      `sss_read_${kind}_${studentId}`,
       JSON.stringify([...ids])
     );
   } catch {
@@ -221,7 +220,7 @@ export default function TopBar({
     try {
       const raw =
         localStorage.getItem(
-          `sgs_read_notices_${studentId}`
+          `sss_read_notices_${studentId}`
         );
 
       if (raw) {
@@ -266,13 +265,13 @@ export default function TopBar({
     };
 
     window.addEventListener(
-      'sgsNoticeRead',
+      'sssNoticeRead',
       handler
     );
 
     return () => {
       window.removeEventListener(
-        'sgsNoticeRead',
+        'sssNoticeRead',
         handler
       );
     };
@@ -364,7 +363,7 @@ export default function TopBar({
         try {
           const raw =
             localStorage.getItem(
-              `sgs_read_notices_${studentId}`
+              `sss_read_notices_${studentId}`
             );
 
           const existing: Set<number> =
@@ -377,7 +376,7 @@ export default function TopBar({
           existing.add(noticeId);
 
           localStorage.setItem(
-            `sgs_read_notices_${studentId}`,
+            `sss_read_notices_${studentId}`,
             JSON.stringify(
               [...existing]
             )
@@ -434,7 +433,7 @@ export default function TopBar({
       try {
         const raw =
           localStorage.getItem(
-            `sgs_read_notices_${studentId}`
+            `sss_read_notices_${studentId}`
           );
 
         const existing: Set<number> =
@@ -451,7 +450,7 @@ export default function TopBar({
         }
 
         localStorage.setItem(
-          `sgs_read_notices_${studentId}`,
+          `sss_read_notices_${studentId}`,
           JSON.stringify(
             [...existing]
           )
